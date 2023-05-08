@@ -1,0 +1,13 @@
+# Workspace
+.catkin_workspace
+.catkin_tools/
+.vscode/
+build/
+devel/
+logs/
+!src/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyc

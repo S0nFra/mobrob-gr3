@@ -1,0 +1,7 @@
+<launch>
+    <arg name="map_file_path" default="$(find map2gazebo)/map/map.yaml"/>
+    <include file="$(find map2gazebo)/launch/turtlebot3_diem_map.launch"/>
+    <include file="$(find turtlebot3_navigation)/launch/turtlebot3_navigation.launch">
+        <arg name="map_file" value="$(arg map_file_path)"/>
+    </include>
+</launch>
