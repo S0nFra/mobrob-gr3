@@ -1,0 +1,72 @@
+{
+    "1": {
+      "pose": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "roll": 0,
+          "pitch": 0,
+          "yaw": 0
+        }
+      }
+    },
+    "2": {
+      "pose": {
+        "position": {
+          "x": -3,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "roll": 0,
+          "pitch": 0,
+          "yaw": 0
+        }
+      }
+    },
+    "3": {
+      "pose": {
+        "position": {
+          "x": -6,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "roll": 0,
+          "pitch": 0,
+          "yaw": 0
+        }
+      }
+    },
+    "4": {
+      "pose": {
+        "position": {
+          "x": -9,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "roll": 0,
+          "pitch": 0,
+          "yaw": 0
+        }
+      }
+    },
+    "5": {
+      "pose": {
+        "position": {
+          "x": -12,
+          "y": 0,
+          "z": 0
+        },
+        "orientation": {
+          "roll": 0,
+          "pitch": 0,
+          "yaw": 0
+        }
+      }
+    }
+  }

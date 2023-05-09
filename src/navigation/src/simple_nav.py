@@ -27,7 +27,7 @@ class Navigation():
             tmp = trajectory_json[str(point)]['pose']
             waypoint = PPoint(str(point), list(tmp['position'].values()), list(tmp['orientation'].values()))
             self.trajectory.append(waypoint)
-            
+                        
             if self.verbose:
                 print(waypoint,'\n')
   
@@ -35,7 +35,7 @@ class Navigation():
         rospy.init_node('navigation')
         pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=3)
         
-        jump_to(self.model_name, self.trajectory[0], hard_reset=True) # mi posiziono nel primo punto della traiettoria
+        # jump_to(self.model_name, self.trajectory[0], hard_reset=True) # mi posiziono nel primo punto della traiettoria
         
         cp : PPoint = self.trajectory[0]  # cp - current_point
         dp : PPoint                       # dp - destination_point
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     import os
     from pathlib import Path
 
-    m = Navigation(trajectory_path=  Path(os.environ['WS_DIR']) / './src/trajectories/world_tour.json',
+    m = Navigation(trajectory_path=  Path(os.environ['WS_DIR']) / './src/navigation/trajectories/traj.json',
                    frame_id=         'map',
                    model_name=       os.environ['TURTLEBOT_MODEL'],
                    autorun=          False,
