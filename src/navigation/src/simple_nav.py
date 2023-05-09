@@ -9,7 +9,7 @@ from move_base_msgs.msg import MoveBaseActionResult
 # https://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1geometry.html
 # from numpy_ros import to_numpy
 
-from src.misc import *
+from ppoint import PPoint
 import numpy as np
 import json
 
