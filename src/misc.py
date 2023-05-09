@@ -59,6 +59,7 @@ class PPoint():
                 self.orientation.roll = math.radians(orientation[0])
                 self.orientation.pitch = math.radians(orientation[1])
                 self.orientation.yaw = math.radians(orientation[2])
+                orientation = list(map(math.radians,orientation))
                 tmp = quaternion_from_euler(orientation[0],orientation[1],orientation[2])
                 self.orientation.quaternion = Quaternion(tmp[0], tmp[1], tmp[2], tmp[3])
             
