@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+
+# add args: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+
 SOURCE=${BASH_SOURCE[0]}
 while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
   WS_DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
