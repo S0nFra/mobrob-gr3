@@ -1,0 +1,6 @@
+<launch>
+    <arg name="ip"/>
+    <machine name="turtlebot3-raspberry" address="$(arg ip)" user="ubuntu" password="turtlebot" env-loader="/home/ubuntu/realsense/catkin_ws/devel/realsense_env.sh"/>
+    <node machine="turtlebot3-raspberry" name="realsense" type="query_devices.py" pkg="realsense" output="log" ns="camera">
+    </node>
+</launch>

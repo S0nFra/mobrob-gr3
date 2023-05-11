@@ -1,0 +1,4 @@
+fps_capture: 30 #Frequency of image acquisition from camera
+fps_publish: 30 #Frequency of image publication
+width: 424 #Width of frames
+height: 240 #Height of frames
