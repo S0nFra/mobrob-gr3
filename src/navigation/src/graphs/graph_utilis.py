@@ -1,4 +1,4 @@
-import graph
+from src.navigation.src.graphs import graph
 
 def str2tuple(tuple_str):
     return tuple(map(float, tuple_str.replace('(','').replace(')','').split(',')))
