@@ -2,10 +2,12 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
+from std_msgs.msg import String
 from move_base_msgs.msg import MoveBaseActionResult
 
 from ppoint import PPoint
 import numpy as np
+import math
 from misc import *
 from src.navigation.src.graphs.graph_utilis import *
 from src.navigation.src.graphs.graph import Graph
@@ -30,11 +32,18 @@ class Navigation():
         # Inizializzare servizi ROS
         rospy.init_node('navigation')
         self._pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=3)
-        self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist)
-        self._sub_amcl = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._update_trajectory)
+        self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
+        # self._sub_amcl = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._update_trajectory)
         
-    def _update_trajectory(self, pose:PoseWithCovarianceStamped):
-        self.trajecotry.append(pose)
+    # def _update_trajectory(self, pose:PoseWithCovarianceStamped):
+    #     self.trajecotry.append(pose)
+    
+    def get_command(self):
+        msg : String = rospy.wait_for_message('/navigation/command', String)
+        return msg.data
+    
+    def get_amcl_pose(self) -> PoseWithCovarianceStamped:
+        return rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped)
                 
     def nearest_neighbor(self, ego_position, neighbors):
         neighbors = np.array(neighbors)
@@ -43,25 +52,24 @@ class Navigation():
         return neighbors[idx], dist[idx]
     
     def directional_neighbors(self, ego_pose:PPoint, neighbors, direction:str=None):
-        dir_neighbors = {'left':[], 'right':[], 'front':[], 'back':[]}
-        for vx, vy in neighbors:
-            neighbor = np.array([vx,vy,0])
-            v = ego_pose.get_position_numpy() - neighbor
-            u = np.array([np.cos(ego_pose._orientation._yaw), np.sin(ego_pose._orientation._yaw),0])
-
+        dir_neighbors = {'LEFT':[], 'RIGHT':[], 'STRAIGHT ON':[], 'GO BACK':[]}
+        for neighbor in neighbors:
+            neighbor = np.array(neighbor)
+            v = neighbor - ego_pose.get_position_numpy()
+            u = np.array([np.cos(ego_pose.orientation.yaw), np.sin(ego_pose.orientation.yaw),0])
             cross = np.cross(u,v)[2] # vector along z of the vector product
             inner = np.inner(u,v)    # scalar product
             
             if abs(cross) > abs(inner):
                 if cross > 0:
-                    dir_neighbors['left'].append((vx,vy))
+                    dir_neighbors['LEFT'].append(neighbor)
                 else :
-                    dir_neighbors['right'].append((vx,vy))
+                    dir_neighbors['RIGHT'].append(neighbor)
             else:
                 if inner >= 0:
-                    dir_neighbors['front'].append((vx,vy))
+                    dir_neighbors['STRAIGHT ON'].append(neighbor)
                 else:
-                    dir_neighbors['back'].append((vx,vy))
+                    dir_neighbors['GO BACK'].append(neighbor)
         
         if direction:
             return dir_neighbors[direction]
@@ -69,14 +77,12 @@ class Navigation():
         return dir_neighbors
     
     def calibrate(self):
-        print("[NAV] Calibration phase...",end='')
         cmd = Twist()
         cmd.angular.z = 2*np.pi/WARM_UP_TIME
         self._pub_cmd_vel.publish(cmd)
         rospy.sleep(WARM_UP_TIME)
         cmd.angular.z = 0
         self._pub_cmd_vel.publish(cmd)
-        print("DONE")
     
     def set_goal(self, goal_pose:PPoint):
         msg = PoseStamped()
@@ -103,33 +109,44 @@ class Navigation():
         input('Press any key to continue...')
         
         ## Calibration phase
+        print("[NAV] Calibration phase... ",end='')
         self.calibrate()
-        
-        ## Reaching nearest waypoint
-        tmp : PoseWithCovarianceStamped = rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped)
-        starting_pose = PPoint.from_pose_to_ppoint(tmp.pose.pose)
-        starting_pose.id = 'starting pose'
-        print('\n>> starting pose:',starting_pose)
-        wps = get_vertices_numpy(self._vertex_map)
-        nearest_wp, distance = self.nearest_neighbor(starting_pose.get_position_numpy(),wps)
-        print('>> nearest wp:',nearest_wp,'at',f'{distance:.4f}')
-        if distance > DISTANCE_TH:
-            # if nearest_wp is too far reach it
-            print('[NAV] nearest wp far, reaching...')
-            self.set_goal(PPoint(position=nearest_wp))
-        current_wp = nearest_wp
+        print("DONE")
         
         current_cmd = 'STRAIGHT ON'
         
-        # while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and current_cmd != 'STOP':
             
-        #     if not self.autorun:
-        #         input('-\nPress any key to continue... ')
-        #     else:
-        #         # waiting for settling
-        #         rospy.sleep(3)
+            print('-\n[NAV] command:', current_cmd)
             
+            if not self.autorun:
+                input('Press any key to continue... ')
+            else:
+                # waiting for settling
+                rospy.sleep(3)
+                
+            current_pose = PPoint.from_pose_to_ppoint(self.get_amcl_pose().pose.pose)
+            print('[NAV] current pose:',current_pose)
             
+            # Reaching nearest waypoint
+            wps = get_vertices_numpy(self._vertex_map)
+            nearest_wp, distance = self.nearest_neighbor(current_pose.get_position_numpy(),wps)
+            print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
+            current_wp = tuple(nearest_wp)
+            self.trajecotry.append(current_wp)
+            
+            # Looking for reachable waypoints
+            v = self._vertex_map[current_wp]
+            adjs = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
+            
+            # Find destination waypoint
+            next_pos = self.directional_neighbors(current_pose,adjs,current_cmd)[0]
+            theta = math.atan2(next_pos[1]-current_pose.position.y, next_pos[0]-current_pose.position.x)
+            self.set_goal(PPoint(position=next_pos, orientation=(0,0,theta), degrees2radians=False))
+            
+            # Looking for next command
+            current_cmd = self.get_command()
+
 
 if __name__ == '__main__':
     import os
