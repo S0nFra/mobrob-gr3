@@ -35,16 +35,19 @@ class Camera():
                 cv2.imshow(self.name, image)
                 cv2.waitKey(1)
         except CvBridgeError as e:
-            print('ERROR lx: scan images')
+            print('ERROR: scan images')
             
         if self.save_path:
             cv2.imwrite(self.save_path+f'/{self.frame_cnt}.jpg',image)
             self.frame_cnt += 1
         
-        command, _ , _ = self._qr.detectAndDecodeCurved(image)
+        try:
+            command, _ , _ = self._qr.detectAndDecodeCurved(image)
+        except Exception:
+            pass
         
         if command: 
-            print('Next command from lx: ', command)
+            print('Next command: ', command)
             self._pub.publish(command)
 
 if __name__ == '__main__':
