@@ -1,0 +1,8 @@
+<launch>
+  <arg name="name" default="name"/>
+  <arg name="topic" default="/camera"/>
+  <arg name="save" default="0"/>
+  <arg name="show" default="False"/>
+
+  <node pkg="utils" type="camera.py" name="camera"  args="--name=$(arg name) --topic=$(arg topic) --save=$(arg save) --show=$(arg show)" />
+</launch>
