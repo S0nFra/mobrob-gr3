@@ -1,4 +1,5 @@
 from src.navigation.src.graphs import graph
+import numpy as np
 
 def str2tuple(tuple_str):
     return tuple(map(float, tuple_str.replace('(','').replace(')','').split(',')))
@@ -39,3 +40,16 @@ def build_graph(V, E, is_directed = False, vertex_map: dict = None) -> tuple([gr
         G.insert_edge(origin, destination, element)
 
     return G, vertex_map
+
+def get_vertices_numpy(vertex_map:dict, o3d=True):
+    """Prende vertex_map e restituisce i vertici in 3 o 2 dimensioni come matrice numpy
+
+    Args:
+        vertex_map (dict): dizionario dei vertici
+        o3d (bool, optional): Se True restituisce i vertici in 3d dimensioni, altrimenti in 2 dimensioni. Defaults to True.
+    """
+    v = np.array(list(vertex_map.keys()))
+    
+    if o3d:
+        return np.c_[v,np.zeros(v.shape[0])]
+    return v
