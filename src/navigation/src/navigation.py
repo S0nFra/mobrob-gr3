@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import rospy
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
 from move_base_msgs.msg import MoveBaseActionResult
 
 from ppoint import PPoint
@@ -30,6 +30,7 @@ class Navigation():
         # Inizializzare servizi ROS
         rospy.init_node('navigation')
         self._pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=3)
+        self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist)
         self._sub_amcl = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._update_trajectory)
         
     def _update_trajectory(self, pose:PoseWithCovarianceStamped):
@@ -68,9 +69,14 @@ class Navigation():
         return dir_neighbors
     
     def calibrate(self):
-        # TODO
-        # WARMUP_TIME
-        input('Press any key to continue...')
+        print("[NAV] Calibration phase...",end='')
+        cmd = Twist()
+        cmd.angular.z = 2*np.pi/WARM_UP_TIME
+        self._pub_cmd_vel.publish(cmd)
+        rospy.sleep(WARM_UP_TIME)
+        cmd.angular.z = 0
+        self._pub_cmd_vel.publish(cmd)
+        print("DONE")
     
     def set_goal(self, goal_pose:PPoint):
         msg = PoseStamped()
@@ -97,7 +103,6 @@ class Navigation():
         input('Press any key to continue...')
         
         ## Calibration phase
-        print("[NAV] Calibration phase")
         self.calibrate()
         
         ## Reaching nearest waypoint
