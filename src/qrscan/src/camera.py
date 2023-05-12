@@ -14,7 +14,6 @@ import matplotlib.image as mpimg
 class Camera():
 
     def __init__(self, name:str, topic:str, save_path=None, show=False):
-
         self.name = name
         self.topic = topic
         self.show = show
