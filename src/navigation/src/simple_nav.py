@@ -63,7 +63,7 @@ if __name__ == '__main__':
     import os
     from pathlib import Path
 
-    m = Navigation(trajectory_path=  Path(os.environ['WS_DIR']) / './src/navigation/trajectories/traj.json',
+    m = Navigation(trajectory_path=  Path(os.environ['WS_DIR']) / 'src/navigation/landmarks/traj.json',
                    frame_id=         'map',
                    model_name=       os.environ['TURTLEBOT_MODEL'],
                    autorun=          False,
