@@ -7,6 +7,8 @@ from std_srvs.srv import Empty
 
 import graph
 from typing import Tuple
+import math
+import json
 import numpy as np
 
 def str2tuple(tuple_str):
@@ -59,7 +61,6 @@ def get_vertices_numpy(vertex_map:dict):
         vertex_map (dict): dizionario dei vertici
     """
     v = np.array(list(vertex_map.keys()))
-
     return v
 
 def to_pose2D(pose=None, position=[0,0], orientation=0) -> Pose2D:
@@ -118,14 +119,20 @@ def get_position_numpy(pose,to3D=False) -> np.ndarray:
     else:
         return None
 
-class NupyAsPose2D():
-    def __init__(self, numpy:np.ndarray) -> None:
-        if numpy.shape == (3,):   
-            self.x = numpy[0]
-            self.y = numpy[1]
-            self.theta = numpy[2]
-        else:
-            print()
+def shortest_angle(theta1, theta2):
+    """
+    Calcola l'angolo più breve per passare da theta1 a theta2.
+    Entrambi gli angoli sono espressi in radianti.
+    """
+    # Calcola la differenza tra theta2 e theta1
+    diff = theta2 - theta1
+
+    # Normalizza la differenza nell'intervallo [-pi, pi]
+    diff = (diff + math.pi) % (2 * math.pi) - math.pi
+
+    # Restituisce l'angolo più breve
+    # print(f"L'angolo più breve da {theta1} a {theta2} è {diff} radianti.")
+    return diff
 
 def jump_to(model_name, point:Pose, hard_reset=False, verbose=False):       
     state_msg = ModelState()
@@ -156,3 +163,13 @@ def jump_to(model_name, point:Pose, hard_reset=False, verbose=False):
 
 def no_op(*args, **kwargs):
     pass
+
+class NpEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, np.integer):
+                        return int(obj)
+                    if isinstance(obj, np.floating):
+                        return float(obj)
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    return json.JSONEncoder.default(self, obj)

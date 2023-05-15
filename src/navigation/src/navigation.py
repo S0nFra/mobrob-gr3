@@ -2,6 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import Pose2D, PoseStamped, PoseWithCovarianceStamped, Twist
+from actionlib_msgs.msg import GoalID
 from std_msgs.msg import String
 from move_base_msgs.msg import MoveBaseActionResult
 
@@ -13,6 +14,8 @@ from graph import Graph
 
 DISTANCE_TH = 0.5
 WARM_UP_TIME = 10 # seconds
+ANGULAR_TH = 1e-2
+ROTATION_SPEED = 0.5 # rad/s
 
 class Navigation():
     
@@ -32,6 +35,7 @@ class Navigation():
         rospy.init_node('navigation')
         self._pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=3)
         self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
+        self._canc_goal = rospy.Publisher('/move_base/cancel', GoalID, queue_size=3)
         # self._sub_amcl = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._update_trajectory)
         
     # def _update_trajectory(self, pose:PoseWithCovarianceStamped):
@@ -75,15 +79,6 @@ class Navigation():
                     dir_neighbors['GO BACK'].append(neighbor)
         
         if verbose:
-            class NpEncoder(json.JSONEncoder):
-                def default(self, obj):
-                    if isinstance(obj, np.integer):
-                        return int(obj)
-                    if isinstance(obj, np.floating):
-                        return float(obj)
-                    if isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    return json.JSONEncoder.default(self, obj)
             print(f"[NAV] dir_neighbors:\n{json.dumps(dir_neighbors,indent=3,cls=NpEncoder)}\n")
         
         if direction:
@@ -99,16 +94,17 @@ class Navigation():
         cmd.angular.z = 0
         self._pub_cmd_vel.publish(cmd)
     
-    def set_goal(self, pose:Pose2D, verbose=False, delta = 0):
-        
+    def set_goal(self, pose:Pose2D, verbose=False):        
         if verbose:
-            print('[NAV] New goal:\n',pose,'\n',sep='')
-        
-        ANGULAR_TH = 1e-2
-        ROTATION_SPEED = 0.5
+            print('[NAV] New goal:')
+            print(f"\tx: {pose.x:.3}")
+            print(f"\ty: {pose.y:.3}")
+            print(f"\ttheta: {math.degrees(pose.theta):.3}°")
 
         cmd = Twist()
+        delta = shortest_angle(pose.theta, self._current_pose.theta) # pose.theta - self._current_pose.theta
         time = 0 if abs(delta) < ANGULAR_TH else abs(delta / ROTATION_SPEED)
+        
         cmd.angular.z = np.sign(delta) * ROTATION_SPEED
         self._pub_cmd_vel.publish(cmd)
         rospy.sleep(time)
@@ -117,16 +113,18 @@ class Navigation():
         
         msg = PoseStamped()
         msg.header.frame_id = self.frame_id
-        msg.pose = to_pose(pose)
-        
+        msg.pose = to_pose(pose)        
         self._pub_goal.publish(msg)
         
         result : MoveBaseActionResult = rospy.wait_for_message('/move_base/result', MoveBaseActionResult)
-
         return result
     
+    def cancel_goal(self, goal_id = ''):
+        # actionlib_msgs/GoalID -- {}
+        self._canc_goal.publish(GoalID())
+    
     def start(self):
-        
+                
         ## Positionig on starting point
         if self._in_simulation:
             print("## Insert starting pose")
@@ -143,24 +141,27 @@ class Navigation():
         self.calibrate()
         print("DONE")
         
-        current_cmd = 'STRAIGHT ON'
+        current_cmd = 'LEFT' #'STRAIGHT ON'
         
         while not rospy.is_shutdown() and current_cmd != 'STOP':
             
-            print('-\n[NAV] command:', current_cmd)
+            print('---\n[NAV] command:', current_cmd)
             
             if not self.autorun:
-                input('Press any key to continue... ')
+                input('\nPress any key to continue... ')
             else:
                 # waiting for settling
                 rospy.sleep(3)
                 
-            current_pose = self.get_amcl_pose()
-            print('[NAV] current pose:\n',current_pose,'\n')
+            self._current_pose = self.get_amcl_pose()
+            print('[NAV] current pose:')
+            print(f"\tx: {self._current_pose.x:.3}")
+            print(f"\ty: {self._current_pose.y:.3}")
+            print(f"\ttheta: {math.degrees(self._current_pose.theta):.3}°")
             
             # Reaching nearest waypoint
             wps = get_vertices_numpy(self._vertex_map)
-            nearest_wp, distance = self.nearest_neighbor(current_pose,wps)
+            nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
             print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
             current_wp = tuple(nearest_wp)
             self.trajecotry.append(current_wp)
@@ -168,12 +169,11 @@ class Navigation():
             # Looking for reachable waypoints
             v = self._vertex_map[current_wp]
             adjs = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
-            print(adjs)
+            
             # Find destination waypoint
-            next_pos = self.directional_neighbors(current_pose,adjs,current_cmd)[0]
-            theta = math.atan2(next_pos[1]-current_pose.y, next_pos[0]-current_pose.x)
-            delta = theta - current_pose.theta
-            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True, delta = delta)
+            next_pos = self.directional_neighbors(self._current_pose,adjs,current_cmd)[0]
+            theta = math.atan2(next_pos[1]-self._current_pose.y, next_pos[0]-self._current_pose.x)
+            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
             
             # Looking for next command
             current_cmd = self.get_command()
@@ -193,5 +193,7 @@ if __name__ == '__main__':
         m.start()
     except rospy.ROSInterruptException:
         pass
-
     
+    m.cancel_goal()
+    # source: https://answers.ros.org/question/278296/how-to-clear-local-cost-map/
+    # rosservice call /move_base/clear_costmaps "{}"
