@@ -99,10 +99,21 @@ class Navigation():
         cmd.angular.z = 0
         self._pub_cmd_vel.publish(cmd)
     
-    def set_goal(self, pose:Pose2D, verbose=False):
+    def set_goal(self, pose:Pose2D, verbose=False, delta = 0):
         
         if verbose:
             print('[NAV] New goal:\n',pose,'\n',sep='')
+        
+        ANGULAR_TH = 1e-2
+        ROTATION_SPEED = 0.5
+
+        cmd = Twist()
+        time = 0 if abs(delta) < ANGULAR_TH else abs(delta / ROTATION_SPEED)
+        cmd.angular.z = np.sign(delta) * ROTATION_SPEED
+        self._pub_cmd_vel.publish(cmd)
+        rospy.sleep(time)
+        cmd.angular.z = 0
+        self._pub_cmd_vel.publish(cmd)
         
         msg = PoseStamped()
         msg.header.frame_id = self.frame_id
@@ -111,6 +122,7 @@ class Navigation():
         self._pub_goal.publish(msg)
         
         result : MoveBaseActionResult = rospy.wait_for_message('/move_base/result', MoveBaseActionResult)
+
         return result
     
     def start(self):
@@ -160,7 +172,8 @@ class Navigation():
             # Find destination waypoint
             next_pos = self.directional_neighbors(current_pose,adjs,current_cmd)[0]
             theta = math.atan2(next_pos[1]-current_pose.y, next_pos[0]-current_pose.x)
-            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0,theta)), verbose=True)
+            delta = theta - current_pose.theta
+            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True, delta = delta)
             
             # Looking for next command
             current_cmd = self.get_command()
