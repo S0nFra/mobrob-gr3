@@ -1,16 +1,15 @@
 #!/usr/bin/python3
 
 import rospy
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
+from geometry_msgs.msg import Pose2D, PoseStamped, PoseWithCovarianceStamped, Twist
 from std_msgs.msg import String
 from move_base_msgs.msg import MoveBaseActionResult
 
-from ppoint import PPoint
 import numpy as np
 import math
+import json
 from misc import *
-from src.navigation.src.graphs.graph_utilis import *
-from src.navigation.src.graphs.graph import Graph
+from graph import Graph
 
 DISTANCE_TH = 0.5
 WARM_UP_TIME = 10 # seconds
@@ -42,21 +41,25 @@ class Navigation():
         msg : String = rospy.wait_for_message('/navigation/command', String)
         return msg.data
     
-    def get_amcl_pose(self) -> PoseWithCovarianceStamped:
-        return rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped)
+    def get_amcl_pose(self) -> Pose2D:
+        return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
                 
-    def nearest_neighbor(self, ego_position, neighbors):
-        neighbors = np.array(neighbors)
-        dist = np.linalg.norm(neighbors-ego_position, axis=1)
+    def nearest_neighbor(self, point, neighbors):
+        # neighbors = np.array(neighbors)
+        dist = np.linalg.norm(neighbors-get_position_numpy(point), axis=1)
         idx = np.argmin(dist)
         return neighbors[idx], dist[idx]
     
-    def directional_neighbors(self, ego_pose:PPoint, neighbors, direction:str=None):
+    def directional_neighbors(self, point:Pose2D, neighbors, direction:str=None, verbose=False):
         dir_neighbors = {'LEFT':[], 'RIGHT':[], 'STRAIGHT ON':[], 'GO BACK':[]}
+        
+        neighbors = np.array(neighbors)
+        if neighbors.shape[1] < 3:
+            neighbors = np.c_[neighbors,np.zeros(neighbors.shape[0])]
+        
         for neighbor in neighbors:
-            neighbor = np.array(neighbor)
-            v = neighbor - ego_pose.get_position_numpy()
-            u = np.array([np.cos(ego_pose.orientation.yaw), np.sin(ego_pose.orientation.yaw),0])
+            v = neighbor - get_position_numpy(point,to3D=True)
+            u = np.array([np.cos(point.theta), np.sin(point.theta),0])
             cross = np.cross(u,v)[2] # vector along z of the vector product
             inner = np.inner(u,v)    # scalar product
             
@@ -71,6 +74,18 @@ class Navigation():
                 else:
                     dir_neighbors['GO BACK'].append(neighbor)
         
+        if verbose:
+            class NpEncoder(json.JSONEncoder):
+                def default(self, obj):
+                    if isinstance(obj, np.integer):
+                        return int(obj)
+                    if isinstance(obj, np.floating):
+                        return float(obj)
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    return json.JSONEncoder.default(self, obj)
+            print(f"[NAV] dir_neighbors:\n{json.dumps(dir_neighbors,indent=3,cls=NpEncoder)}\n")
+        
         if direction:
             return dir_neighbors[direction]
         
@@ -84,10 +99,14 @@ class Navigation():
         cmd.angular.z = 0
         self._pub_cmd_vel.publish(cmd)
     
-    def set_goal(self, goal_pose:PPoint):
+    def set_goal(self, pose:Pose2D, verbose=False):
+        
+        if verbose:
+            print('[NAV] New goal:\n',pose,'\n',sep='')
+        
         msg = PoseStamped()
         msg.header.frame_id = self.frame_id
-        msg.pose = goal_pose.to_pose()
+        msg.pose = to_pose(pose)
         
         self._pub_goal.publish(msg)
         
@@ -99,10 +118,9 @@ class Navigation():
         ## Positionig on starting point
         if self._in_simulation:
             print("## Insert starting pose")
-            str_position = str2tuple(input("position (x,y,z): "))
-            str_orientation = str2tuple(input("orientation (roll, pitch, yaw): "))          
-            tmp = PPoint('starting_pose',str_position,str_orientation)
-            jump_to(self.model_name, tmp, hard_reset=False)
+            str_position = str2list(input("position (x,y): "))
+            str_orientation = math.radians(float(input("orientation (yaw°): ")))
+            jump_to(self.model_name, to_pose(position=str_position, orientation=str_orientation), hard_reset=False)
             print("##\n")
         
         print("[NAV] Waiting for RViz 2D Pose Estimate")
@@ -125,12 +143,12 @@ class Navigation():
                 # waiting for settling
                 rospy.sleep(3)
                 
-            current_pose = PPoint.from_pose_to_ppoint(self.get_amcl_pose().pose.pose)
-            print('[NAV] current pose:',current_pose)
+            current_pose = self.get_amcl_pose()
+            print('[NAV] current pose:\n',current_pose,'\n')
             
             # Reaching nearest waypoint
             wps = get_vertices_numpy(self._vertex_map)
-            nearest_wp, distance = self.nearest_neighbor(current_pose.get_position_numpy(),wps)
+            nearest_wp, distance = self.nearest_neighbor(current_pose,wps)
             print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
             current_wp = tuple(nearest_wp)
             self.trajecotry.append(current_wp)
@@ -138,11 +156,11 @@ class Navigation():
             # Looking for reachable waypoints
             v = self._vertex_map[current_wp]
             adjs = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
-            
+            print(adjs)
             # Find destination waypoint
             next_pos = self.directional_neighbors(current_pose,adjs,current_cmd)[0]
-            theta = math.atan2(next_pos[1]-current_pose.position.y, next_pos[0]-current_pose.position.x)
-            self.set_goal(PPoint(position=next_pos, orientation=(0,0,theta), degrees2radians=False))
+            theta = math.atan2(next_pos[1]-current_pose.y, next_pos[0]-current_pose.x)
+            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0,theta)), verbose=True)
             
             # Looking for next command
             current_cmd = self.get_command()

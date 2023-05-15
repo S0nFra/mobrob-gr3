@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from src.navigation.src.graphs import graph
+from src.navigation.src import graph
 import matplotlib.pyplot as plt
 import tkinter as tk
 
