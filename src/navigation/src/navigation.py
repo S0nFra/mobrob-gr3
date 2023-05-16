@@ -102,7 +102,7 @@ class Navigation():
             print(f"\ttheta: {math.degrees(pose.theta):.3}°")
 
         cmd = Twist()
-        delta = shortest_angle(pose.theta, self._current_pose.theta) # pose.theta - self._current_pose.theta
+        delta = pose.theta - self._current_pose.theta # shortest_angle(pose.theta, self._current_pose.theta)
         time = 0 if abs(delta) < ANGULAR_TH else abs(delta / ROTATION_SPEED)
         
         cmd.angular.z = np.sign(delta) * ROTATION_SPEED
@@ -141,7 +141,7 @@ class Navigation():
         self.calibrate()
         print("DONE")
         
-        current_cmd = 'LEFT' #'STRAIGHT ON'
+        current_cmd = 'STRAIGHT ON'
         
         while not rospy.is_shutdown() and current_cmd != 'STOP':
             
