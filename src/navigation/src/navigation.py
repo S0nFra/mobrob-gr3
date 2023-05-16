@@ -103,6 +103,9 @@ class Navigation():
 
         cmd = Twist()
         delta = pose.theta - self._current_pose.theta # shortest_angle(pose.theta, self._current_pose.theta)
+        if delta > np.pi:
+            delta -= np.pi*2
+
         time = 0 if abs(delta) < ANGULAR_TH else abs(delta / ROTATION_SPEED)
         
         cmd.angular.z = np.sign(delta) * ROTATION_SPEED
