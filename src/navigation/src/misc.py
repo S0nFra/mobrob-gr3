@@ -119,21 +119,6 @@ def get_position_numpy(pose,to3D=False) -> np.ndarray:
     else:
         return None
 
-def shortest_angle(theta1, theta2):
-    """
-    Calcola l'angolo più breve per passare da theta1 a theta2.
-    Entrambi gli angoli sono espressi in radianti.
-    """
-    # Calcola la differenza tra theta2 e theta1
-    diff = theta2 - theta1
-
-    # Normalizza la differenza nell'intervallo [-pi, pi]
-    diff = (diff + math.pi) % (2 * math.pi) - math.pi
-
-    # Restituisce l'angolo più breve
-    # print(f"L'angolo più breve da {theta1} a {theta2} è {diff} radianti.")
-    return diff
-
 def jump_to(model_name, point:Pose, hard_reset=False, verbose=False):       
     state_msg = ModelState()
     state_msg.model_name = model_name
