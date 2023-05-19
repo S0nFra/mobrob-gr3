@@ -42,9 +42,6 @@ class Navigation():
         # if not self._in_simulation:
         #     self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
         #     self._ccleaner_thread = rospy.Timer(rospy.Duration(4), self._costmap_cleaner)
-        
-    # def _update_trajectory(self, pose:PoseWithCovarianceStamped):
-    #     self.trajecotry.append(pose)
     
     def _costmap_cleaner(self, event):
         print('[NAV] Costmap cleaned')
@@ -95,23 +92,23 @@ class Navigation():
         
         return dir_neighbors
     
-    def calibrate(self):
+    def _movement_manager(self, movement:Twist, move_time, time_for_iteration=0.3):
         if self._in_simulation:
-            cmd = Twist()
-            cmd.angular.z = 2*np.pi/WARM_UP_TIME
-            self._pub_cmd_vel.publish(cmd)
-            rospy.sleep(WARM_UP_TIME)
-            cmd.angular.z = 0
-            self._pub_cmd_vel.publish(cmd)
-        else:           
-            cmd = Twist()
-            cmd.angular.z = 2*np.pi/WARM_UP_TIME
-            iterations = int(WARM_UP_TIME/ITERATION_TIME) +1
+            self._pub_cmd_vel.publish(movement)
+            rospy.sleep(move_time)
+            self._pub_cmd_vel.publish(Twist())
+        else:
+            iterations = int(move_time/time_for_iteration) +1
             for i in range(iterations):
                 print(f'[NAV] iteration calibarion {i+1}/{iterations}')
-                self._pub_cmd_vel.publish(cmd)
-                rospy.sleep(ITERATION_TIME)
-            self._pub_cmd_vel.publish(Twist()) 
+                self._pub_cmd_vel.publish(movement)
+                rospy.sleep(time_for_iteration)
+            self._pub_cmd_vel.publish(Twist())
+    
+    def calibrate(self):
+        cmd = Twist()
+        cmd.angular.z = 2*np.pi/WARM_UP_TIME
+        self._movement_manager(cmd, WARM_UP_TIME)
     
     def set_goal(self, pose:Pose2D, verbose=False):        
         if verbose:
@@ -135,6 +132,7 @@ class Navigation():
         
         msg = PoseStamped()
         msg.header.frame_id = self.frame_id
+        msg.header.stamp = rospy.Time.now()
         msg.pose = to_pose(pose)        
         self._pub_goal.publish(msg)
         
