@@ -4,6 +4,7 @@ import rospy
 from geometry_msgs.msg import Pose2D, PoseStamped, PoseWithCovarianceStamped, Twist
 from actionlib_msgs.msg import GoalID
 from std_msgs.msg import String
+from std_srvs.srv import Empty
 from move_base_msgs.msg import MoveBaseActionResult
 
 import numpy as np
@@ -36,10 +37,17 @@ class Navigation():
         self._pub_goal = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=3)
         self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
         self._canc_goal = rospy.Publisher('/move_base/cancel', GoalID, queue_size=3)
-        # self._sub_amcl = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self._update_trajectory)
+        
+        # if not self._in_simulation:
+        #     self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
+        #     self._ccleaner_thread = rospy.Timer(rospy.Duration(4), self._costmap_cleaner)
         
     # def _update_trajectory(self, pose:PoseWithCovarianceStamped):
     #     self.trajecotry.append(pose)
+    
+    def _costmap_cleaner(self, event):
+        print('[NAV] Costmap cleaned')
+        self._ccleaner()
     
     def get_command(self):
         msg : String = rospy.wait_for_message('/navigation/command', String)
@@ -180,7 +188,9 @@ class Navigation():
             
             # Looking for next command
             current_cmd = self.get_command()
-
+            
+        if not self._in_simulation:
+            self._ccleaner_thread.shutdown()
 
 if __name__ == '__main__':
     import os
