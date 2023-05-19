@@ -15,6 +15,7 @@ from graph import Graph
 
 DISTANCE_TH = 0.5
 WARM_UP_TIME = 10 # seconds
+ITERATION_TIME = 0.3
 ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5 # rad/s
 
@@ -95,12 +96,22 @@ class Navigation():
         return dir_neighbors
     
     def calibrate(self):
-        cmd = Twist()
-        cmd.angular.z = 2*np.pi/WARM_UP_TIME
-        self._pub_cmd_vel.publish(cmd)
-        rospy.sleep(WARM_UP_TIME)
-        cmd.angular.z = 0
-        self._pub_cmd_vel.publish(cmd)
+        if self._in_simulation:
+            cmd = Twist()
+            cmd.angular.z = 2*np.pi/WARM_UP_TIME
+            self._pub_cmd_vel.publish(cmd)
+            rospy.sleep(WARM_UP_TIME)
+            cmd.angular.z = 0
+            self._pub_cmd_vel.publish(cmd)
+        else:           
+            cmd = Twist()
+            cmd.angular.z = 2*np.pi/WARM_UP_TIME
+            iterations = int(WARM_UP_TIME/ITERATION_TIME) +1
+            for i in range(iterations):
+                print(f'[NAV] iteration calibarion {i+1}/{iterations}')
+                self._pub_cmd_vel.publish(cmd)
+                rospy.sleep(ITERATION_TIME)
+            self._pub_cmd_vel.publish(Twist()) 
     
     def set_goal(self, pose:Pose2D, verbose=False):        
         if verbose:
