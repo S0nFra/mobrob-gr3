@@ -19,12 +19,12 @@ class Camera():
         self.show = show
         self.save_path = save_path
         self.frame_cnt = 0
-        self._pub = rospy.Publisher('/navigation/command', String, queue_size=3)
         self._qr = cv2.QRCodeDetector()
         self.bridge = CvBridge()
     
     def start(self):
         rospy.init_node(self.name)
+        self._pub = rospy.Publisher('/navigation/command', String, queue_size=3)
         rospy.Subscriber(self.topic, CompressedImage, self._scan_images)
         rospy.spin()
         
@@ -41,6 +41,7 @@ class Camera():
             cv2.imwrite(self.save_path+f'/{self.frame_cnt}.jpg',image)
             self.frame_cnt += 1
         
+        command = None
         try:
             command, _ , _ = self._qr.detectAndDecodeCurved(image)
         except Exception:

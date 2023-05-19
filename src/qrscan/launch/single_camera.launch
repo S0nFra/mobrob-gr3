@@ -1,0 +1,9 @@
+<launch>
+  <arg name="name" default="name"/>
+  <arg name="topic" default="/camera"/>
+  <arg name="save" default="0"/>
+  <arg name="show" default="False"/>
+
+  <node pkg="qrscan" type="camera.py" name="camera" args="--name=$(arg name) --topic=$(arg topic) --save=$(arg save) --show=$(arg show)" />
+  <?ignore rosrun utils camera.py --name "camera_rx" --topic "/camera/rx/image" --save "src/utils/src/camere/frame_rx" --show True ?>
+</launch>
