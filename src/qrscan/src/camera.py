@@ -43,9 +43,9 @@ class Camera():
         
         command = None
         try:
-            command, _ , _ = self._qr.detectAndDecodeCurved(image)
+            command, _, _ = self._qr.detectAndDecode(image)
         except Exception as e:
-            # print("[detectAndDecodeCurved]",e)
+            print("[detectAndDecode]",e)
             pass
         
         if command: 
