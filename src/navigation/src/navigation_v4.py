@@ -56,10 +56,10 @@ class Navigation():
         if self._goal:
             if np.linalg.norm(get_position_numpy(amcl_pose)-get_position_numpy(self._goal,to3D=True)) < DISTANCE_TH:
                 self.client.cancel_all_goals()
-                self._goal = None
                 
                 ## Rotation before end
                 self._manage_pose(self._goal,to_pose2D(amcl_pose))                
+                self._goal = None
                 print('[NAV] GOAL REACHED')
     
     def get_command(self):
@@ -215,10 +215,11 @@ class Navigation():
             self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
             
             # Looking for next command
-            min_trans = rospy.get_param('/move_base/DWAPlannerROS/min_vel_trans')
-            rospy.set_param('/move_base/DWAPlannerROS/max_vel_trans',min_trans+2)
+            rospy.set_param('/move_base/DWAPlannerROS/max_vel_trans',0.16)
+            print('[NAV]',rospy.get_param('/move_base/DWAPlannerROS/max_vel_trans'))
             current_cmd = self.get_command()
             rospy.set_param('/move_base/DWAPlannerROS/max_vel_trans',0.26)
+            print('[NAV]',rospy.get_param('/move_base/DWAPlannerROS/max_vel_trans'))
             
         # if not self._in_simulation:
         #     self._ccleaner_thread.shutdown()
