@@ -42,8 +42,8 @@ class Node:
         '''
         self.cap.set(cv.CAP_PROP_FPS, rospy.get_param("/camera/fps_capture"))
         self.cap.set(cv.CAP_PROP_FRAME_WIDTH, rospy.get_param("/camera/width"))    
-        self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, rospy.get_param("/camera/height"))   
-
+        self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, rospy.get_param("/camera/height"))
+        
     def print_camera_info(self):
         '''
         These lines of code are retrieving the width, height, and frames per second (FPS) of the
@@ -62,7 +62,8 @@ class Node:
         published to the ROS topic `"image"` using the `self.img_pub.publish()` method. This allows the
         image to be transmitted over the ROS network with reduced bandwidth usage.
         '''
-        img_msg = self.bridge.cv2_to_compressed_imgmsg(frame, 'jpg')
+        img_msg = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        img_msg = self.bridge.cv2_to_compressed_imgmsg(img_msg, 'jpg')
         self.img_pub.publish(img_msg)
     
     def publish_frame_cb(self):
