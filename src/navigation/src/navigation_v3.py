@@ -12,19 +12,18 @@ import numpy as np
 import math
 import json
 from misc import *
-from graph import Graph
 
 DISTANCE_TH = 0.5
 WARM_UP_TIME = 10 # seconds
 ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5 # rad/s
+REACHED_TH = 0.5 # meters
 
 class Navigation():
     
     def __init__(self, graph_path, frame_id, model_name, in_simulation=True, autorun=False, verbose=False):
         self.model_name = model_name
         self.frame_id = frame_id
-        self.trajecotry = list()
         self._in_simulation = in_simulation
         self.verbose = verbose
         self.autorun = autorun
@@ -36,18 +35,30 @@ class Navigation():
         # Inizializzare servizi ROS
         rospy.init_node('navigation')
         self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
+        
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         self.client.wait_for_server()
+        rospy.on_shutdown(self.client.cancel_all_goals)
+        
+        self._goal = None
+        rospy.Subscriber('/amcl_pose',PoseWithCovarianceStamped,self.goal_reached)
         
         # if not self._in_simulation:
-        #     self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
-        #     self._ccleaner_thread = rospy.Timer(rospy.Duration(4), self._costmap_cleaner)
+        self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
+        # self._ccleaner_thread = rospy.Timer(rospy.Duration(4), self._costmap_cleaner)
           
     # def _costmap_cleaner(self, event):
     #     # source: https://answers.ros.org/question/278296/how-to-clear-local-cost-map/
     #     # rosservice call /move_base/clear_costmaps "{}"
     #     print('[NAV] Costmap cleaned')
     #     self._ccleaner()
+    
+    def goal_reached(self,amcl_pose:PoseWithCovarianceStamped):
+        if self._goal:
+            if np.linalg.norm(get_position_numpy(amcl_pose)-get_position_numpy(self._goal,to3D=True)) < DISTANCE_TH:
+                self.client.cancel_all_goals()
+                self._goal = None
+                print('[NAV] GOAL REACHED')
     
     def get_command(self):
         msg : String = rospy.wait_for_message('/navigation/command', String)
@@ -101,15 +112,15 @@ class Navigation():
         else:
             iterations = int(move_time/time_for_iteration) +1
             for i in range(iterations):
-                # print(f'[NAV] iteration calibarion {i+1}/{iterations}')
                 self._pub_cmd_vel.publish(movement)
                 rospy.sleep(time_for_iteration)
             self._pub_cmd_vel.publish(Twist())
     
     def calibrate(self):
+        self._ccleaner()
         cmd = Twist()
         cmd.angular.z = 2*np.pi/WARM_UP_TIME
-        self._movement_manager(cmd, WARM_UP_TIME)
+        self._movement_manager(cmd, WARM_UP_TIME)        
     
     def set_goal(self, pose:Pose2D, verbose=False):
         if verbose:
@@ -117,7 +128,7 @@ class Navigation():
             print(f"\tx: {pose.x:.3}")
             print(f"\ty: {pose.y:.3}")
             print(f"\ttheta: {math.degrees(pose.theta):.3}°")
-
+        
         ## Rotation befoure goal
         cmd = Twist()
         delta = pose.theta - self._current_pose.theta
@@ -129,21 +140,23 @@ class Navigation():
         cmd.angular.z = np.sign(delta) * ROTATION_SPEED
         self._movement_manager(cmd, time)
         
-        ## Setting goal     
+        ## Setting goal
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = self.frame_id
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
         self.client.send_goal(goal)
-
-        wait = self.client.wait_for_result()
         
-        if not wait:
-            rospy.logerr("Action server not available!")
-            rospy.signal_shutdown("Action server not available!")
-        else:
-            # Result of executing the action
-            return self.client.get_result()
+        self._goal = pose
+        
+        # wait = self.client.wait_for_result()
+        
+        # if not wait:
+        #     rospy.logerr("Action server not available!")
+        #     rospy.signal_shutdown("Action server not available!")
+        # else:
+        #     # Result of executing the action
+        #     return self.client.get_result()
     
     def start(self):
                 
@@ -164,16 +177,16 @@ class Navigation():
         print("DONE")
         
         current_cmd = 'STRAIGHT ON'
+        input('\nPress any key to START... ')
         
         while not rospy.is_shutdown() and current_cmd != 'STOP':
             
             print('---\n[NAV] command:', current_cmd)
-            
             if not self.autorun:
                 input('\nPress any key to continue... ')
             else:
                 # waiting for settling
-                rospy.sleep(3)
+                rospy.sleep(1.5)
                 
             self._current_pose = self.get_amcl_pose()
             print('[NAV] current pose:')
@@ -186,7 +199,6 @@ class Navigation():
             nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
             print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
             current_wp = tuple(nearest_wp)
-            self.trajecotry.append(current_wp)
             
             # Looking for reachable waypoints
             v = self._vertex_map[current_wp]
@@ -218,4 +230,4 @@ if __name__ == '__main__':
     except rospy.ROSInterruptException:
         pass
     
-    m.client.cancel_goal()
+    

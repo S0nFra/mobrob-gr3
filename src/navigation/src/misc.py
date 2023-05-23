@@ -55,7 +55,7 @@ def build_graph(V, E, is_directed = False, vertex_map: dict = None) -> Tuple[gra
     return G, vertex_map
 
 def get_vertices_numpy(vertex_map:dict):
-    """Prende vertex_map e restituisce i vertici in 3 o 2 dimensioni come matrice numpy
+    """Prende vertex_map e restituisce i vertici come matrice numpy
 
     Args:
         vertex_map (dict): dizionario dei vertici
@@ -112,6 +112,8 @@ def get_position_numpy(pose,to3D=False) -> np.ndarray:
             return np.array([pose.x,pose.y,0])
         else:
             return np.array([pose.x,pose.y])
+    elif isinstance(pose,PoseWithCovarianceStamped):
+        return np.array([pose.pose.pose.position.x, pose.pose.pose.position.y,pose.pose.pose.position.z])
     elif isinstance(pose,list):
         return np.array(pose)
     elif isinstance(pose,np.ndarray):

@@ -4,12 +4,12 @@
     <include file="$(find qrscan)/launch/single_camera.launch" ns="camera_rx">
         <arg name="name" default="camera_rx"/>
         <arg name="topic" default="/camera/rx/image"/>
-        <arg name="show" default="True"/>
+        <arg name="show" default="false"/>
     </include>
 
     <include file="$(find qrscan)/launch/single_camera.launch" ns="camera_sx">
         <arg name="name" default="camera_sx"/>
         <arg name="topic" default="/camera/lx/image"/>
-        <arg name="show" default="True"/>
+        <arg name="show" default="false"/>
     </include>
 </launch>

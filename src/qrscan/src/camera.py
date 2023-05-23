@@ -24,7 +24,7 @@ class Camera():
     
     def start(self):
         rospy.init_node(self.name)
-        self._pub = rospy.Publisher('/navigation/command', String, queue_size=3)
+        self._pub = rospy.Publisher('/navigation/command', String, queue_size=1)
         rospy.Subscriber(self.topic, CompressedImage, self._scan_images)
         rospy.spin()
         

@@ -1,6 +1,6 @@
 <launch>
     <arg name="ip"/>
-    <arg name="camera_lx" default="17"/>
+    <arg name="camera_lx" default="10"/>
     <arg name="camera_rx" default="4"/>
     <rosparam file="$(find realsense)/src/camera_setting.yaml" ns="camera"/>
     <machine name="turtlebot3-raspberry" address="$(arg ip)" user="ubuntu" password="turtlebot" env-loader="/home/ubuntu/realsense/catkin_ws/devel/realsense_env.sh"/>
