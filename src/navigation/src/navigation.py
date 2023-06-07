@@ -138,6 +138,7 @@ class Navigation():
         self._movement_manager(cmd, time)
     
     def calibrate(self):
+        rospy.wait_for_service('/move_base/clear_costmaps')
         self._ccleaner()
         cmd = Twist()
         cmd.angular.z = 2*np.pi/WARM_UP_TIME
