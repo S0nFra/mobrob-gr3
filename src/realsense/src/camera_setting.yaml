@@ -1,4 +1,4 @@
-fps_capture: 15 #Frequency of image acquisition from camera
-fps_publish: 15 #Frequency of image publication
-width: 424 #Width of frames
-height: 240 #Height of frames
+fps_capture: 12 #Frequency of image acquisition from camera
+fps_publish: 12 #Frequency of image publication
+width: 240 # 424 #Width of frames
+height: 160 # 240 #Height of frames

@@ -67,7 +67,7 @@ if __name__ == "__main__":
                  topic=options.topic,
                  save_path=options.save,
                  show= options.show == '1',
-                 verbose = False)
+                 verbose = True)
 
     try:
         cam.start()
