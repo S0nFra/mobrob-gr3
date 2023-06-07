@@ -1,0 +1,6 @@
+<launch>
+  <arg name="show" default="false"/>
+  
+  <node pkg="qrscan" type="webcam.py" name="webcam" args="--name=webcam --topic=frames" />
+  <node pkg="qrscan" type="camera.py" name="camera" args="--name=qr_scan --topic=frames --show=$(arg show)" />
+</launch>

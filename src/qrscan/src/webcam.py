@@ -32,7 +32,6 @@ class Webcam():
     def _take(self):
         _ , frame = self.video.read()
     
-
         try:
             img_msg = self.bridge.cv2_to_compressed_imgmsg(frame, 'jpg')
             self._pub.publish(img_msg)
@@ -44,7 +43,7 @@ if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--name", "-n", default='camera')
-    parser.add_option("--topic", "-t", default='topic')
+    parser.add_option("--topic", "-t", default='topic')    
 
     (options, args) = parser.parse_args()
     
