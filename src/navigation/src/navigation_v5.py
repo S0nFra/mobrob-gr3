@@ -14,10 +14,11 @@ import math
 import json
 from misc import *
 
-WARM_UP_TIME = 10 # seconds
+WARM_UP_TIME = 10     # seconds
 ANGULAR_TH = 1e-2
-ROTATION_SPEED = 0.5 # rad/s
-REACHED_TH = 0.5 # meters
+ROTATION_SPEED = 0.5  # rad/s
+REACHED_TH = 1.5      # meters
+REACHED_TH_STOP = 0.2 # meters
 SLOW_SPEED = 0.15
 FAST_SPEED = 0.26
 
@@ -54,6 +55,9 @@ class Navigation():
     def get_command(self, command:String):
         self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
         self.current_cmd = command.data
+        
+        if self.current_cmd == 'STOP':
+            self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
     
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
@@ -90,15 +94,17 @@ class Navigation():
         if verbose:
             print(f"[NAV] dir_neighbors:\n{json.dumps(dir_neighbors,indent=3,cls=NpEncoder)}\n")
         
-        if direction:
-            res = None
-            try:
-                res = dir_neighbors[direction]
-            except KeyError:
-                print("[NAV] No points for in direction",direction)
-            return res
-        
-        return dir_neighbors
+        res = None
+        try:
+            res = dir_neighbors[direction]
+        except KeyError:
+            print("[NAV] No correct direction:",direction)
+
+        if not res:
+            print("[NAV] No points in direction",direction)
+            return None
+                
+        return res[0]
     
     def _movement_manager(self, movement:Twist, move_time, time_for_iteration=0.3):
         if self._in_simulation:
@@ -184,7 +190,7 @@ class Navigation():
             
             if not self.current_cmd:
                 # TODO
-                pass
+                raise NotImplementedError(f"Current command \"{self.current_cmd}\" error")
             
             print('---\n[NAV] command:', self.current_cmd)
             if not self.autorun:
@@ -207,18 +213,18 @@ class Navigation():
             
             # Looking for reachable waypoints
             v = self._vertex_map[current_wp]
-            adjs = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
+            reachable_wps = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
             
             # Find destination waypoint
-            next_pos = self.directional_neighbors(self._current_pose,adjs,self.current_cmd)[0]
+            next_pos = self.directional_neighbors(self._current_pose,reachable_wps,self.current_cmd)
             self.current_cmd = None
             if next_pos is not None:
                 theta = math.atan2(next_pos[1]-self._current_pose.y, next_pos[0]-self._current_pose.x)
                 self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
             else:
                 # TODO
-                pass
-            
+                raise NotImplementedError(f"Behavior not implementesd")
+
             # Go slow to detect command            
             self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
