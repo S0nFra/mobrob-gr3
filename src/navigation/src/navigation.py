@@ -9,6 +9,7 @@ from move_base_msgs.msg import MoveBaseActionResult, MoveBaseAction, MoveBaseGoa
 import dynamic_reconfigure.client
 import actionlib
 
+from enum import Enum
 import numpy as np
 import math
 import json
@@ -21,6 +22,12 @@ REACHED_TH = 1.5      # meters
 REACHED_TH_STOP = 0.2 # meters
 SLOW_SPEED = 0.15
 FAST_SPEED = 0.26
+
+class Command(str,Enum):
+    LEFT = 'LEFT'
+    RIGHT = 'RIGHT'
+    STRAIGHT_ON = 'STRAIGHT ON'
+    GO_BACK = 'GO BACK'
 
 class Navigation():
     
@@ -68,7 +75,7 @@ class Navigation():
         return neighbors[idx], dist[idx]
     
     def directional_neighbors(self, point:Pose2D, neighbors, direction:str=None, verbose=False):
-        dir_neighbors = {'LEFT':[], 'RIGHT':[], 'STRAIGHT ON':[], 'GO BACK':[]}
+        dir_neighbors = {Command.LEFT:[], Command.RIGHT:[], Command.STRAIGHT_ON:[], Command.GO_BACK:[]}
         
         neighbors = np.array(neighbors)
         if neighbors.shape[1] < 3:
@@ -82,14 +89,14 @@ class Navigation():
             
             if abs(cross) > abs(inner):
                 if cross > 0:
-                    dir_neighbors['LEFT'].append(neighbor)
+                    dir_neighbors[Command.LEFT].append(neighbor)
                 else :
-                    dir_neighbors['RIGHT'].append(neighbor)
+                    dir_neighbors[Command.RIGHT].append(neighbor)
             else:
                 if inner >= 0:
-                    dir_neighbors['STRAIGHT ON'].append(neighbor)
+                    dir_neighbors[Command.STRAIGHT_ON].append(neighbor)
                 else:
-                    dir_neighbors['GO BACK'].append(neighbor)
+                    dir_neighbors[Command.GO_BACK].append(neighbor)
         
         if verbose:
             print(f"[NAV] dir_neighbors:\n{json.dumps(dir_neighbors,indent=3,cls=NpEncoder)}\n")
@@ -137,7 +144,7 @@ class Navigation():
     
     def set_goal(self, pose:Pose2D, verbose=False):
         if verbose:
-            print('[NAV] New goal:')
+            print('[NAV] new goal:')
             print(f"\tx: {pose.x:.3}")
             print(f"\ty: {pose.y:.3}")
             print(f"\ttheta: {math.degrees(pose.theta):.3}°")
@@ -164,6 +171,39 @@ class Navigation():
             # Result of executing the action
             print("[NAV] Goal reached")
             return self.move_base_client.get_result()
+        
+    def execute_command(self, command_force=None):
+        
+        command = command_force if command_force else self.current_cmd
+        
+        self._current_pose = self.get_amcl_pose()
+        print('[NAV] current pose:')
+        print(f"\tx: {self._current_pose.x:.3}")
+        print(f"\ty: {self._current_pose.y:.3}")
+        print(f"\ttheta: {math.degrees(self._current_pose.theta):.3}°")
+        
+        # Reaching nearest waypoint
+        wps = get_vertices_numpy(self._vertex_map)
+        nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
+        print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
+        current_wp = tuple(nearest_wp)
+        
+        # Looking for reachable waypoints
+        v = self._vertex_map[current_wp]
+        reachable_wps = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
+        
+        # Find destination waypoint
+        next_pos = self.directional_neighbors(self._current_pose,reachable_wps,command)
+        
+        if not command_force:
+            self.current_cmd = None
+        
+        if next_pos is not None:
+            theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
+            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
+        else:
+            # TODO
+            raise NotImplementedError(f"Behavior not implementesd")
     
     def start(self):
                 
@@ -189,8 +229,10 @@ class Navigation():
         while not rospy.is_shutdown() and self.current_cmd != 'STOP':
             
             if not self.current_cmd:
-                # TODO
-                raise NotImplementedError(f"Current command \"{self.current_cmd}\" error")
+                print('[NAV] Command not found')
+                for i in range(2):
+                    print(f'[NAV] Looking for command. Try {i+1}/2')
+                    self.execute_command(command_force=Command.GO_BACK)
             
             print('---\n[NAV] command:', self.current_cmd)
             if not self.autorun:
@@ -199,31 +241,7 @@ class Navigation():
                 # waiting for settling
                 rospy.sleep(1.5)
 
-            self._current_pose = self.get_amcl_pose()
-            print('[NAV] current pose:')
-            print(f"\tx: {self._current_pose.x:.3}")
-            print(f"\ty: {self._current_pose.y:.3}")
-            print(f"\ttheta: {math.degrees(self._current_pose.theta):.3}°")
-            
-            # Reaching nearest waypoint
-            wps = get_vertices_numpy(self._vertex_map)
-            nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
-            print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
-            current_wp = tuple(nearest_wp)
-            
-            # Looking for reachable waypoints
-            v = self._vertex_map[current_wp]
-            reachable_wps = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
-            
-            # Find destination waypoint
-            next_pos = self.directional_neighbors(self._current_pose,reachable_wps,self.current_cmd)
-            self.current_cmd = None
-            if next_pos is not None:
-                theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
-                self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
-            else:
-                # TODO
-                raise NotImplementedError(f"Behavior not implementesd")
+            self.execute_command()
 
             # Go slow to detect command            
             self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
