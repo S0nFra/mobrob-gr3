@@ -22,6 +22,7 @@ REACHED_TH = 1.5      # meters
 REACHED_TH_STOP = 0.2 # meters
 SLOW_SPEED = 0.15
 FAST_SPEED = 0.26
+RESEARCH_ATTEMPTS = 2 #integers multiples of 2
 
 class Command(str,Enum):
     LEFT = 'LEFT'
@@ -230,8 +231,8 @@ class Navigation():
             
             if not self.current_cmd:
                 print('[NAV] Command not found')
-                for i in range(2):
-                    print(f'[NAV] Looking for command. Try {i+1}/2')
+                for i in range(RESEARCH_ATTEMPTS):
+                    print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
                     self.execute_command(command_force=Command.GO_BACK)
             
             print('---\n[NAV] command:', self.current_cmd)
