@@ -11,7 +11,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-class C():
+class Webcam():
 
     def __init__(self, name:str, topic:str):
         self.name = name
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
     
-    cam = C(name=options.name,
+    cam = Webcam(name=options.name,
                  topic=options.topic
     )
 

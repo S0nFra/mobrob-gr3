@@ -19,7 +19,7 @@ class Node:
         self.rate = rospy.Rate(rospy.get_param("/camera/fps_publish"))
         self.frame = None
         Thread(target=self.publish_frame_cb, daemon=True).start()
-        self._gray = rospy.get_param("/grayscale")
+        self._gray = rospy.get_param("~grayscale")
     
     def open_stream(self):
         '''
