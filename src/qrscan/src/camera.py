@@ -13,12 +13,13 @@ import matplotlib.image as mpimg
 
 class Camera():
 
-    def __init__(self, name:str, topic:str, save_path=None, show=False):
+    def __init__(self, name:str, topic:str, save_path=None, show=False, verbose=False):
         self.name = name
         self.topic = topic
         self.show = show
         self.save_path = save_path
         self.frame_cnt = 0
+        self.verbose = verbose
         self._qr = cv2.QRCodeDetector()
         self.bridge = CvBridge()
     
@@ -48,8 +49,8 @@ class Camera():
             print("[detectAndDecode]",e)
             pass
         
-        if command: 
-            print('Next command: ', command)
+        if command:
+            if self.verbose: print(f'[{self.name}] Next command: ', command)
             self._pub.publish(command)
 
 if __name__ == "__main__":    
@@ -65,7 +66,8 @@ if __name__ == "__main__":
     cam = Camera(name=options.name,
                  topic=options.topic,
                  save_path=options.save,
-                 show= options.show == '1')
+                 show= options.show == '1',
+                 verbose = False)
 
     try:
         cam.start()
