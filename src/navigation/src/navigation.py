@@ -223,7 +223,7 @@ class Navigation():
         self.calibrate()
         print("DONE")
         
-        self.current_cmd = 'STRAIGHT ON'
+        self.current_cmd = Command.STRAIGHT_ON
         input('\nPress any key to START... ')
         
         while not rospy.is_shutdown() and self.current_cmd != 'STOP':
