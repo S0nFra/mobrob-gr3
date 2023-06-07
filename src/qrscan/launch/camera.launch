@@ -1,15 +1,17 @@
 <launch>
+    <arg name="show" default="0"/>
+
     <node pkg="realsense" name="run_launch" type="run_launch.bash" output="screen"/>
 
     <include file="$(find qrscan)/launch/single_camera.launch" ns="camera_rx">
-        <arg name="name" default="camera_rx"/>
-        <arg name="topic" default="/camera/rx/image"/>
-        <arg name="show" default="false"/>
+        <arg name="name" value="camera_rx"/>
+        <arg name="topic" value="/camera/rx/image"/>
+        <arg name="show" value="$(arg show)" />
     </include>
 
     <include file="$(find qrscan)/launch/single_camera.launch" ns="camera_sx">
-        <arg name="name" default="camera_lx"/>
-        <arg name="topic" default="/camera/lx/image"/>
-        <arg name="show" default="false"/>
+        <arg name="name" value="camera_lx"/>
+        <arg name="topic" value="/camera/lx/image"/>
+        <arg name="show" value="$(arg show)" />
     </include>
 </launch>

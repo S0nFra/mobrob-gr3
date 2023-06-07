@@ -52,21 +52,20 @@ class Camera():
             print('Next command: ', command)
             self._pub.publish(command)
 
-if __name__ == '__main__':
-    
+if __name__ == "__main__":    
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--name", "-n", default='camera')
     parser.add_option("--topic", "-t", default='topic')
     parser.add_option("--save", default=None)
-    parser.add_option("--show", "-s", default=False)    
+    parser.add_option("--show", "-s", default='0')    
     (options, args) = parser.parse_args()
     
+    print(options)
     cam = Camera(name=options.name,
                  topic=options.topic,
                  save_path=options.save,
-                 show=options.show)
-    print(options)
+                 show= options.show == '1')
 
     try:
         cam.start()
