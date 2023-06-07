@@ -2,14 +2,10 @@
 
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
-import threading
 import cv2
 import rospy
 import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
-
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 class Webcam():
 
