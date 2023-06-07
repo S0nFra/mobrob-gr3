@@ -58,7 +58,11 @@ class Navigation():
                 self.client.cancel_all_goals()
                 
                 ## Rotation before end
-                self._manage_pose(self._goal,to_pose2D(amcl_pose))                
+                print(f"\nposa finale: {math.degrees(self._goal.theta)}")
+                self._current_pose = to_pose2D(amcl_pose)
+                print(f"\nposa corrente: {math.degrees(self._current_pose.theta)}")
+                rospy.sleep(2)
+                self._manage_pose(self._goal)
                 self._goal = None
                 print('[NAV] GOAL REACHED')
     
@@ -108,6 +112,7 @@ class Navigation():
     
     def _movement_manager(self, movement:Twist, move_time, time_for_iteration=0.3):
         if self._in_simulation:
+            print('COMANDO')
             self._pub_cmd_vel.publish(movement)
             rospy.sleep(move_time)
             self._pub_cmd_vel.publish(Twist())
@@ -120,7 +125,7 @@ class Navigation():
             
     def _manage_pose(self, target_pose:Pose2D, current_pose:Pose2D=None):
         cmd = Twist()
-        delta = target_pose.theta - current_pose.theta if current_pose else self._current_pose.theta
+        delta = target_pose.theta - self._current_pose.theta
         if abs(delta) > np.pi:
             delta += -np.sign(delta)*np.pi*2
 
@@ -128,6 +133,8 @@ class Navigation():
         
         cmd.angular.z = np.sign(delta) * ROTATION_SPEED
         self._movement_manager(cmd, time)
+        
+        print(f'[manage pose] time:{time}, delta:{math.degrees(delta)}')
     
     def calibrate(self):
         self._ccleaner()
@@ -150,9 +157,9 @@ class Navigation():
         goal.target_pose.header.frame_id = self.frame_id
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
-        self.client.send_goal(goal)
-        
         self._goal = pose
+        
+        self.client.send_goal(goal)
         
         # wait = self.client.wait_for_result()
         
@@ -215,11 +222,7 @@ class Navigation():
             self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
             
             # Looking for next command
-            rospy.set_param('/move_base/DWAPlannerROS/max_vel_trans',0.16)
-            print('[NAV]',rospy.get_param('/move_base/DWAPlannerROS/max_vel_trans'))
             current_cmd = self.get_command()
-            rospy.set_param('/move_base/DWAPlannerROS/max_vel_trans',0.26)
-            print('[NAV]',rospy.get_param('/move_base/DWAPlannerROS/max_vel_trans'))
             
         # if not self._in_simulation:
         #     self._ccleaner_thread.shutdown()
