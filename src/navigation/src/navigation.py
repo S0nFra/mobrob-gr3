@@ -237,6 +237,7 @@ class Navigation():
                 for i in range(RESEARCH_ATTEMPTS):
                     print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
                     self.execute_command(command_force=Command.GO_BACK)
+                self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
             print('---\n[NAV] command:', self.current_cmd)
             if not self.autorun:
