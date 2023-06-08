@@ -244,7 +244,6 @@ class Navigation():
         else:
             pprint("[NAV] required repositioning!",bcolors.YELLOW)
             self.robot_repositioning_manger()
-            # raise NotImplementedError(f"Behavior not implementesd")
         
         if not command_force:
             self._last_waypoint = current_wp
