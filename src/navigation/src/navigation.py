@@ -291,7 +291,7 @@ class Navigation():
             # Go slow to detect command            
             self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
-        print("""[NAV]
+        pprint("""[NAV]
   ______ _   _ _____  
  |  ____| \ | |  __ \ 
  | |__  |  \| | |  | |
