@@ -19,10 +19,10 @@ WARM_UP_TIME = 10     # seconds
 ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5  # rad/s
 REACHED_TH = 1.5      # meters
-REACHED_TH_STOP = 0.2 # meters
-SLOW_SPEED = 0.15
+REACHED_TH_STOP = 0.1 # meters
+SLOW_SPEED = 0.16
 FAST_SPEED = 0.26
-RESEARCH_ATTEMPTS = 2 #integers multiples of 2
+RESEARCH_ATTEMPTS = 2 # integers multiples of 2
 
 class Command(str,Enum):
     LEFT = 'LEFT'
@@ -172,6 +172,8 @@ class Navigation():
         else:
             # Result of executing the action
             print("[NAV] Goal reached")
+            rospy.wait_for_service('/move_base/clear_costmaps')
+            self._ccleaner()
             return self.move_base_client.get_result()
         
     def execute_command(self, command_force=None):
