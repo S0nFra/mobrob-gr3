@@ -152,11 +152,28 @@ def no_op(*args, **kwargs):
     pass
 
 class NpEncoder(json.JSONEncoder):
-                def default(self, obj):
-                    if isinstance(obj, np.integer):
-                        return int(obj)
-                    if isinstance(obj, np.floating):
-                        return float(obj)
-                    if isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    return json.JSONEncoder.default(self, obj)
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+class bcolors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    YELLOW = '\033[93m'
+    MAGENTA = '\033[95m'
+    GREY = '\033[90m'
+    BLACK = '\033[90m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def pprint(msg,color:bcolors=bcolors.CYAN):
+    print(color+msg+bcolors.ENDC)

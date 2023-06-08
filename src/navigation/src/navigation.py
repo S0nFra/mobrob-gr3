@@ -38,12 +38,19 @@ class Navigation():
         self._in_simulation = in_simulation
         self.verbose = verbose
         self.autorun = autorun
+        
+        self._goal = None
+        self.current_cmd = None
+        
+        self._current_pose = None
+        self._last_waypoint = None
+        self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
 
-        # Inizializzare il grafo per la raggiungibilità dei waypoint
+        # Initialize the waypoint reachability graph
         V, E = read_graph(graph_path)
         self._graph, self._vertex_map = build_graph(V, E)
         
-        # Inizializzare servizi ROS
+        # Initialize ROS services
         rospy.init_node('navigation')
         self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=3)
         rospy.Subscriber("/navigation/command", String, self.get_command)
@@ -55,8 +62,7 @@ class Navigation():
         self.reconfigure_client = dynamic_reconfigure.client.Client("/move_base/DWAPlannerROS")
         self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH, "max_vel_trans":SLOW_SPEED})
         
-        self._goal = None
-        self.current_cmd = None
+        self._pub_rviz_pose = rospy.Publisher('/initialpose',PoseWithCovarianceStamped,queue_size=1)
         
         self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
        
@@ -171,10 +177,40 @@ class Navigation():
             rospy.signal_shutdown("Action server not available!")
         else:
             # Result of executing the action
-            print("[NAV] Goal reached")
+            pprint("[NAV] Goal reached",bcolors.BOLD)
             rospy.wait_for_service('/move_base/clear_costmaps')
             self._ccleaner()
             return self.move_base_client.get_result()
+        
+    def robot_repositioning_manger(self):
+        print('[NAV] expected waypoint:',self._last_waypoint)
+        
+        if self._in_simulation:
+            print("## Insert pose")
+            pos = str2list(input("position (x,y): "))
+            ori = math.radians(float(input("orientation (yaw°): ")))
+            jump_to(self.model_name, to_pose(position=pos, orientation=ori), hard_reset=False)
+            print("##\n")
+        else:
+            input('[NAV] waiting for repositioning. Press any key to conitune...')
+        
+        pose = PoseWithCovarianceStamped()
+        pose.header.frame_id = self.frame_id
+        pose.header.stamp = rospy.Time.now()
+        pose.pose.pose.position.x = self._last_waypoint[0]
+        pose.pose.pose.position.y = self._last_waypoint[1]
+        tmp = quaternion_from_euler(0,0,self._goal.theta)
+        pose.pose.pose.orientation = Quaternion(tmp[0], tmp[1], tmp[2], tmp[3])
+        pose.pose.covariance = self._ref_covariance
+        self._pub_rviz_pose.publish(pose)
+        rospy.sleep(3)
+        
+        print("[NAV] Calibration phase... ",end='')
+        self.calibrate()
+        print("DONE")
+        
+        self.current_cmd = Command.STRAIGHT_ON
+        input('[NAV] Ready to restart. Press any key to contiune...')
         
     def execute_command(self, command_force=None):
         
@@ -189,7 +225,7 @@ class Navigation():
         # Reaching nearest waypoint
         wps = get_vertices_numpy(self._vertex_map)
         nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
-        print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f}')
+        print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f} meters')
         current_wp = tuple(nearest_wp)
         
         # Looking for reachable waypoints
@@ -206,8 +242,12 @@ class Navigation():
             theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
             self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
         else:
-            # TODO
-            raise NotImplementedError(f"Behavior not implementesd")
+            pprint("[NAV] required repositioning!",bcolors.YELLOW)
+            self.robot_repositioning_manger()
+            # raise NotImplementedError(f"Behavior not implementesd")
+        
+        if not command_force:
+            self._last_waypoint = current_wp
     
     def start(self):
                 
@@ -233,7 +273,7 @@ class Navigation():
         while not rospy.is_shutdown() and self.current_cmd != 'STOP':
             
             if not self.current_cmd:
-                print('[NAV] Command not found')
+                pprint('[NAV] Command not found',bcolors.YELLOW)
                 for i in range(RESEARCH_ATTEMPTS):
                     print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
                     self.execute_command(command_force=Command.GO_BACK)
@@ -259,7 +299,7 @@ class Navigation():
  | |____| |\  | |__| |
  |______|_| \_|_____/  
          
-""")
+""",bcolors.BOLD)
 
 
 if __name__ == '__main__':
