@@ -20,7 +20,7 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5  # rad/s
 REACHED_TH = 1.5      # meters
 REACHED_TH_STOP = 0.1 # meters
-SLOW_SPEED = 0.16
+SLOW_SPEED = 0.26
 FAST_SPEED = 0.26
 RESEARCH_ATTEMPTS = 2 # integers multiples of 2
 
@@ -59,19 +59,19 @@ class Navigation():
         self.move_base_client.wait_for_server()
         rospy.on_shutdown(self.move_base_client.cancel_all_goals)
         
-        self.reconfigure_client = dynamic_reconfigure.client.Client("/move_base/DWAPlannerROS")
-        self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH, "max_vel_trans":SLOW_SPEED})
+        self.dwa_reconfigure_client = dynamic_reconfigure.client.Client("/move_base/DWAPlannerROS")
+        self.dwa_reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH, "max_vel_trans":SLOW_SPEED})
         
         self._pub_rviz_pose = rospy.Publisher('/initialpose',PoseWithCovarianceStamped,queue_size=1)
         
         self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
        
     def get_command(self, command:String):
-        self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
+        self.dwa_reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
         self.current_cmd = command.data
         
         if self.current_cmd == 'STOP':
-            self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
+            self.dwa_reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
     
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
@@ -183,7 +183,7 @@ class Navigation():
             return self.move_base_client.get_result()
         
     def robot_repositioning_manger(self):
-        print('[NAV] expected waypoint:',self._last_waypoint)
+        print(f'[NAV] expected waypoint: {self._last_waypoint}')
         
         if self._in_simulation:
             print("## Insert pose")
@@ -192,7 +192,7 @@ class Navigation():
             jump_to(self.model_name, to_pose(position=pos, orientation=ori), hard_reset=False)
             print("##\n")
         else:
-            input('[NAV] waiting for repositioning. Press any key to conitune...')
+            input('[NAV] Waiting for repositioning. Press any key to conitune...')
         
         pose = PoseWithCovarianceStamped()
         pose.header.frame_id = self.frame_id
@@ -211,43 +211,8 @@ class Navigation():
         
         self.current_cmd = Command.STRAIGHT_ON
         input('[NAV] Ready to restart. Press any key to contiune...')
-        
-    def execute_command(self, command_force=None):
-        
-        command = command_force if command_force else self.current_cmd
-        
-        self._current_pose = self.get_amcl_pose()
-        print('[NAV] current pose:')
-        print(f"\tx: {self._current_pose.x:.3}")
-        print(f"\ty: {self._current_pose.y:.3}")
-        print(f"\ttheta: {math.degrees(self._current_pose.theta):.3}°")
-        
-        # Reaching nearest waypoint
-        wps = get_vertices_numpy(self._vertex_map)
-        nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
-        print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f} meters')
-        current_wp = tuple(nearest_wp)
-        
-        # Looking for reachable waypoints
-        v = self._vertex_map[current_wp]
-        reachable_wps = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
-        
-        # Find destination waypoint
-        next_pos = self.directional_neighbors(self._current_pose,reachable_wps,command)
-        
-        if not command_force:
-            self.current_cmd = None
-        
-        if next_pos is not None:
-            theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
-            self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
-        else:
-            pprint("[NAV] required repositioning!",bcolors.YELLOW)
-            self.robot_repositioning_manger()
-        
-        if not command_force:
-            self._last_waypoint = current_wp
-    
+        print('\n')
+            
     def start(self):
                 
         ## Positionig on starting point
@@ -273,10 +238,8 @@ class Navigation():
             
             if not self.current_cmd:
                 pprint('[NAV] Command not found',bcolors.YELLOW)
-                for i in range(RESEARCH_ATTEMPTS):
-                    print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
-                    self.execute_command(command_force=Command.GO_BACK)
-                self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
+                self.robot_repositioning_manger()
+                self.dwa_reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
             print('---\n[NAV] command:', self.current_cmd)
             if not self.autorun:
@@ -284,11 +247,38 @@ class Navigation():
             else:
                 # waiting for settling
                 rospy.sleep(1.5)
-
-            self.execute_command()
-
+        
+            self._current_pose = self.get_amcl_pose()
+            print('[NAV] current pose:')
+            print(f"\tx: {self._current_pose.x:.3}")
+            print(f"\ty: {self._current_pose.y:.3}")
+            print(f"\ttheta: {math.degrees(self._current_pose.theta):.3}°")
+            
+            # Reaching nearest waypoint
+            wps = get_vertices_numpy(self._vertex_map)
+            nearest_wp, distance = self.nearest_neighbor(self._current_pose,wps)
+            print('[NAV] nearest wp:',nearest_wp,'at',f'{distance:.4f} meters')
+            current_wp = tuple(nearest_wp)
+            
+            # Looking for reachable waypoints
+            v = self._vertex_map[current_wp]
+            reachable_wps = [e.opposite(v).element() for e in self._graph.incident_edges(v)]
+            
+            # Find destination waypoint
+            next_pos = self.directional_neighbors(self._current_pose,reachable_wps,self.current_cmd)
+            self.current_cmd = None
+            
+            if next_pos is not None:
+                theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
+                self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
+            else:
+                pprint("[NAV] required repositioning!",bcolors.YELLOW)
+                self.robot_repositioning_manger()
+                
+            self._last_waypoint = current_wp
+            
             # Go slow to detect command            
-            self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
+            self.dwa_reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
         pprint("""[NAV]
   ______ _   _ _____  
