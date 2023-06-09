@@ -20,7 +20,7 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5  # rad/s
 REACHED_TH = 1.5      # meters
 REACHED_TH_STOP = 0.1 # meters
-SLOW_SPEED = 0.16
+SLOW_SPEED = 0.26
 FAST_SPEED = 0.26
 RESEARCH_ATTEMPTS = 2 # integers multiples of 2
 
@@ -29,7 +29,7 @@ class Command(str,Enum):
     RIGHT = 'RIGHT'
     STRAIGHT_ON = 'STRAIGHT ON'
     GO_BACK = 'GO BACK'
-
+    STOP = 'STOP'
 class Navigation():
     
     def __init__(self, graph_path, frame_id, model_name, in_simulation=True, autorun=False, verbose=False):
@@ -41,10 +41,15 @@ class Navigation():
         
         self._goal = None
         self.current_cmd = None
-        
+        self._prevoius_cmd = None
+
         self._current_pose = None
         self._last_waypoint = None
         self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
+        self._right_wp = None
+        self._flag = False
+        self._iteration = 3
+        self._time = None
 
         # Initialize the waypoint reachability graph
         V, E = read_graph(graph_path)
@@ -67,11 +72,28 @@ class Navigation():
         self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
        
     def get_command(self, command:String):
+
+        def compute_distance(location_1, location_2):
+            x = location_2.x - location_1.x
+            y = location_2.y - location_1.y
+            norm = np.linalg.norm([x, y, 0])
+            return norm
+
         self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
+        self._prevoius_cmd = self.current_cmd
         self.current_cmd = command.data
         
-        if self.current_cmd == 'STOP':
+        if self.current_cmd == Command.STOP:
             self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
+        
+        if self._flag and self._iteration == 0:
+            self._flag = False
+            self.move_base_client.cancel_all_goals()
+            current_pose : Pose2D = self.get_amcl_pose()
+            self._time = compute_distance(current_pose, self._right_wp)/FAST_SPEED + 2
+            print("SONO DENTRO")
+            rospy.sleep(0.5)
+            self.set_goal(self._right_wp, verbose=True)
     
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
@@ -167,7 +189,8 @@ class Navigation():
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
         self._goal = pose
-        
+        self._right_wp = pose if not self._cmd_force else self._right_wp
+
         self.move_base_client.send_goal(goal)
         
         wait = self.move_base_client.wait_for_result()
@@ -215,7 +238,8 @@ class Navigation():
     def execute_command(self, command_force=None):
         
         command = command_force if command_force else self.current_cmd
-        
+        self._cmd_force = True if command_force else False
+
         self._current_pose = self.get_amcl_pose()
         print('[NAV] current pose:')
         print(f"\tx: {self._current_pose.x:.3}")
@@ -269,13 +293,21 @@ class Navigation():
         self.current_cmd = Command.STRAIGHT_ON
         input('\nPress any key to START... ')
         
-        while not rospy.is_shutdown() and self.current_cmd != 'STOP':
+        while not rospy.is_shutdown() and self.current_cmd != Command.STOP:
             
             if not self.current_cmd:
                 pprint('[NAV] Command not found',bcolors.YELLOW)
+                self._flag = True
                 for i in range(RESEARCH_ATTEMPTS):
                     print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
+                    self._iteration = i
                     self.execute_command(command_force=Command.GO_BACK)
+                    if not self._flag:
+                        rospy.sleep(2)
+                        rospy.sleep(self._time)
+                        if self.current_cmd == Command.STOP:
+                            rospy.signal_shutdown()
+                        break
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
             print('---\n[NAV] command:', self.current_cmd)
