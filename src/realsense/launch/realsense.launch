@@ -1,6 +1,6 @@
 <launch>
     <arg name="ip"/>
-    <arg name="camera_lx" default="17"/>
+    <arg name="camera_lx" default="10"/>
     <arg name="camera_rx" default="4"/>
     <arg name="rgb_gray" default="0"/>
 
