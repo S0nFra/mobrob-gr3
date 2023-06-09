@@ -306,7 +306,8 @@ class Navigation():
                         rospy.sleep(2)
                         rospy.sleep(self._time)
                         if self.current_cmd == Command.STOP:
-                            rospy.signal_shutdown()
+                            print('SONO DENTRO ', self.current_cmd)
+                            return
                         break
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
