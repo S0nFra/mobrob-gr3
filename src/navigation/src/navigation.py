@@ -29,6 +29,7 @@ class Command(str,Enum):
     RIGHT = 'RIGHT'
     STRAIGHT_ON = 'STRAIGHT ON'
     GO_BACK = 'GO BACK'
+    STOP = 'STOP'
 
 class Navigation():
     
@@ -70,7 +71,7 @@ class Navigation():
         self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
         self.current_cmd = command.data
         
-        if self.current_cmd == 'STOP':
+        if self.current_cmd == Command.STOP:
             self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
     
     def get_amcl_pose(self) -> Pose2D:
