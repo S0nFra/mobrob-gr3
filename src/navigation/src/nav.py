@@ -49,7 +49,7 @@ class Navigation():
         self._current_pose = None
         self._last_waypoint = None
         self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
-        self._right_wp = None
+        self._target_wp = None
         self._flag = False
         self._iteration = 3
         self._set_goal_completed = Event()
@@ -94,7 +94,7 @@ class Navigation():
             self._flag = False
             self.move_base_client.cancel_all_goals()
             rospy.sleep(1)
-            self.set_goal(self._right_wp, verbose=True)
+            self.set_goal(self._target_wp, verbose=True)
             self._set_goal_completed.set()
 
     def get_amcl_pose(self) -> Pose2D:
@@ -191,7 +191,7 @@ class Navigation():
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
         self._goal = pose
-        self._right_wp = pose if not self._cmd_force else self._right_wp
+        self._target_wp = pose if not self._cmd_force else self._target_wp
 
         self.move_base_client.send_goal(goal)
         
@@ -310,7 +310,7 @@ class Navigation():
                         self._set_goal_completed.wait()
                         self._set_goal_completed.clear()
                         break
-                if self.current_cmd == Command.STOP or self.current_cmd == Command.REPOSITION:
+                if self.current_cmd == Command.STOP:
                     continue
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
