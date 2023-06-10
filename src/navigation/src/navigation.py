@@ -8,6 +8,7 @@ from std_srvs.srv import Empty
 from move_base_msgs.msg import MoveBaseActionResult, MoveBaseAction, MoveBaseGoal
 import dynamic_reconfigure.client
 import actionlib
+from threading import Event
 
 from enum import Enum
 import numpy as np
@@ -41,7 +42,6 @@ class Navigation():
         
         self._goal = None
         self.current_cmd = None
-        self._prevoius_cmd = None
 
         self._current_pose = None
         self._last_waypoint = None
@@ -49,7 +49,7 @@ class Navigation():
         self._right_wp = None
         self._flag = False
         self._iteration = 3
-        self._time = None
+        self._set_goal_completed = Event()
 
         # Initialize the waypoint reachability graph
         V, E = read_graph(graph_path)
@@ -72,15 +72,7 @@ class Navigation():
         self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
        
     def get_command(self, command:String):
-
-        def compute_distance(location_1, location_2):
-            x = location_2.x - location_1.x
-            y = location_2.y - location_1.y
-            norm = np.linalg.norm([x, y, 0])
-            return norm
-
         self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
-        self._prevoius_cmd = self.current_cmd
         self.current_cmd = command.data
         
         if self.current_cmd == Command.STOP:
@@ -89,12 +81,10 @@ class Navigation():
         if self._flag and self._iteration == 0:
             self._flag = False
             self.move_base_client.cancel_all_goals()
-            current_pose : Pose2D = self.get_amcl_pose()
-            self._time = compute_distance(current_pose, self._right_wp)/FAST_SPEED + 2
-            print("SONO DENTRO")
-            rospy.sleep(0.5)
+            rospy.sleep(1)
             self.set_goal(self._right_wp, verbose=True)
-    
+            self._set_goal_completed.set()
+
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
                 
@@ -303,10 +293,9 @@ class Navigation():
                     self._iteration = i
                     self.execute_command(command_force=Command.GO_BACK)
                     if not self._flag:
-                        rospy.sleep(2)
-                        rospy.sleep(self._time)
+                        self._set_goal_completed.wait()
+                        self._set_goal_completed.clear()
                         if self.current_cmd == Command.STOP:
-                            print('SONO DENTRO ', self.current_cmd)
                             return
                         break
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
