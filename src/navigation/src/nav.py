@@ -224,7 +224,6 @@ class Navigation():
         pose.header.stamp = rospy.Time.now()
         pose.pose.pose.position.x = self._last_waypoint.x
         pose.pose.pose.position.y = self._last_waypoint.y
-        print('ANGOLO:', math.degrees(self._last_waypoint.theta))
         tmp = quaternion_from_euler(0,0,self._last_waypoint.theta)
         pose.pose.pose.orientation = Quaternion(tmp[0], tmp[1], tmp[2], tmp[3])
         pose.pose.covariance = self._ref_covariance
