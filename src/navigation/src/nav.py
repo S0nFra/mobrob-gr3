@@ -6,6 +6,7 @@ from actionlib_msgs.msg import GoalID
 from std_msgs.msg import String
 from std_srvs.srv import Empty
 from move_base_msgs.msg import MoveBaseActionResult, MoveBaseAction, MoveBaseGoal
+from navigation.srv import *
 import dynamic_reconfigure.client
 import actionlib
 from threading import Event
@@ -31,6 +32,8 @@ class Command(str,Enum):
     STRAIGHT_ON = 'STRAIGHT ON'
     GO_BACK = 'GO BACK'
     STOP = 'STOP'
+    REPOSITION = 'REP'
+
 class Navigation():
     
     def __init__(self, graph_path, frame_id, model_name, in_simulation=True, autorun=False, verbose=False):
@@ -70,6 +73,15 @@ class Navigation():
         self._pub_rviz_pose = rospy.Publisher('/initialpose',PoseWithCovarianceStamped,queue_size=1)
         
         self._ccleaner = rospy.ServiceProxy('/move_base/clear_costmaps', Empty)
+
+        rospy.Service('/cancel_goal',CancelGoal,self.cancel_goal)
+
+    def cancel_goal(self, _):
+        self.current_cmd = Command.REPOSITION
+        self._flag = False
+        self._set_goal_completed.set() if not self._set_goal_completed.is_set() else None
+        self.move_base_client.cancel_all_goals()
+        return CancelGoalResponse("[ACK]")
        
     def get_command(self, command:String):
         self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
@@ -210,13 +222,14 @@ class Navigation():
         pose = PoseWithCovarianceStamped()
         pose.header.frame_id = self.frame_id
         pose.header.stamp = rospy.Time.now()
-        pose.pose.pose.position.x = self._last_waypoint[0]
-        pose.pose.pose.position.y = self._last_waypoint[1]
-        tmp = quaternion_from_euler(0,0,self._goal.theta)
+        pose.pose.pose.position.x = self._last_waypoint.x
+        pose.pose.pose.position.y = self._last_waypoint.y
+        print('ANGOLO:', math.degrees(self._last_waypoint.theta))
+        tmp = quaternion_from_euler(0,0,self._last_waypoint.theta)
         pose.pose.pose.orientation = Quaternion(tmp[0], tmp[1], tmp[2], tmp[3])
         pose.pose.covariance = self._ref_covariance
         self._pub_rviz_pose.publish(pose)
-        rospy.sleep(3)
+        rospy.sleep(3) 
         
         print("[NAV] Calibration phase... ",end='')
         self.calibrate()
@@ -256,11 +269,12 @@ class Navigation():
             theta = math.atan2(next_pos[1]-nearest_wp[1], next_pos[0]-nearest_wp[0])
             self.set_goal(to_pose2D(position=next_pos, orientation=(0,0, theta)), verbose=True)
         else:
+            theta = None
             pprint("[NAV] required repositioning!",bcolors.YELLOW)
             self.robot_repositioning_manger()
         
         if not command_force:
-            self._last_waypoint = current_wp
+            self._last_waypoint = to_pose2D(position=current_wp, orientation=(0,0, theta))
     
     def start(self):
                 
@@ -296,7 +310,7 @@ class Navigation():
                         self._set_goal_completed.wait()
                         self._set_goal_completed.clear()
                         break
-                if self.current_cmd == Command.STOP:
+                if self.current_cmd == Command.STOP or self.current_cmd == Command.REPOSITION:
                     continue
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
