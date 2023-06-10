@@ -295,9 +295,9 @@ class Navigation():
                     if not self._flag:
                         self._set_goal_completed.wait()
                         self._set_goal_completed.clear()
-                        if self.current_cmd == Command.STOP:
-                            return
                         break
+                if self.current_cmd == Command.STOP:
+                    continue
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
             print('---\n[NAV] command:', self.current_cmd)
