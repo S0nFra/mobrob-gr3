@@ -43,7 +43,6 @@ class Navigation():
         self.verbose = verbose
         self.autorun = autorun
         
-        self._goal = None
         self.current_cmd = None
 
         self._current_pose = None
@@ -190,7 +189,6 @@ class Navigation():
         goal.target_pose.header.frame_id = self.frame_id
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
-        self._goal = pose
         self._target_wp = pose if not self._cmd_force else self._target_wp
 
         self.move_base_client.send_goal(goal)
@@ -207,7 +205,7 @@ class Navigation():
             self._ccleaner()
             return self.move_base_client.get_result()
         
-    def robot_repositioning_manger(self):
+    def robot_repositioning_manager(self):
         print('[NAV] expected waypoint:',self._last_waypoint)
         
         if self._in_simulation:
@@ -217,7 +215,7 @@ class Navigation():
             jump_to(self.model_name, to_pose(position=pos, orientation=ori), hard_reset=False)
             print("##\n")
         else:
-            input('[NAV] waiting for repositioning. Press any key to conitune...')
+            input('[NAV] waiting for repositioning. Press any key to continue...')
         
         pose = PoseWithCovarianceStamped()
         pose.header.frame_id = self.frame_id
@@ -235,7 +233,7 @@ class Navigation():
         print("DONE")
         
         self.current_cmd = Command.STRAIGHT_ON
-        input('[NAV] Ready to restart. Press any key to contiune...')
+        input('[NAV] Ready to restart. Press any key to continue...')
         
     def execute_command(self, command_force=None):
         
@@ -270,7 +268,7 @@ class Navigation():
         else:
             theta = None
             pprint("[NAV] required repositioning!",bcolors.YELLOW)
-            self.robot_repositioning_manger()
+            self.robot_repositioning_manager()
         
         if not command_force:
             self._last_waypoint = to_pose2D(position=current_wp, orientation=(0,0, theta))
