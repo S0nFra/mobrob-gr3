@@ -95,7 +95,7 @@ class Navigation():
                 self.move_base_client.cancel_all_goals()
                 rospy.sleep(1)
                 self.set_goal(self._target_wp, verbose=True)
-                self._set_goal_completed.set()
+                self._set_goal_completed.set() if self.current_cmd != Command.REPOSITION else None
 
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
