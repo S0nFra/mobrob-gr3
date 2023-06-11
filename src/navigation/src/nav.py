@@ -22,7 +22,7 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 0.5  # rad/s
 REACHED_TH = 1.5      # meters
 REACHED_TH_STOP = 0.1 # meters
-SLOW_SPEED = 0.20
+SLOW_SPEED = 0.26
 FAST_SPEED = 0.26
 RESEARCH_ATTEMPTS = 2 # integers multiples of 2
 
@@ -206,7 +206,10 @@ class Navigation():
             return self.move_base_client.get_result()
         
     def robot_repositioning_manager(self):
-        print('[NAV] expected waypoint:',self._last_waypoint)
+        pprint('[NAV] expected waypoint:',bcolors.YELLOW)
+        pprint(f'\tx: {self._last_waypoint.x}',bcolors.YELLOW)
+        pprint(f'\ty: {self._last_waypoint.y}',bcolors.YELLOW)
+        pprint(f'\ttheta: {math.degrees(self._last_waypoint.theta)}°',bcolors.YELLOW)
         
         if self._in_simulation:
             print("## Insert pose")
@@ -300,7 +303,7 @@ class Navigation():
                 pprint('[NAV] Command not found',bcolors.YELLOW)
                 self._flag = True
                 for i in range(RESEARCH_ATTEMPTS):
-                    print(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}')
+                    pprint(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}',bcolors.YELLOW)
                     self._iteration = i
                     self.execute_command(command_force=Command.GO_BACK)
                     if not self._flag:
