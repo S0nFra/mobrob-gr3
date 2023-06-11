@@ -78,23 +78,24 @@ class Navigation():
     def cancel_goal(self, _):
         self.current_cmd = Command.REPOSITION
         self._flag = False
-        self._set_goal_completed.set() if not self._set_goal_completed.is_set() else None
         self.move_base_client.cancel_all_goals()
+        rospy.sleep(1)
+        self._set_goal_completed.set() if not self._set_goal_completed.is_set() else None
         return CancelGoalResponse("[ACK]")
        
     def get_command(self, command:String):
-        self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
-        self.current_cmd = command.data
-        
-        if self.current_cmd == Command.STOP:
-            self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
-        
-        if self._flag and self._iteration == 0:
-            self._flag = False
-            self.move_base_client.cancel_all_goals()
-            rospy.sleep(1)
-            self.set_goal(self._target_wp, verbose=True)
-            self._set_goal_completed.set()
+        if self.current_cmd != Command.REPOSITION:
+            self.reconfigure_client.update_configuration({"max_vel_trans":FAST_SPEED})
+            self.current_cmd = command.data
+            if self.current_cmd == Command.STOP:
+                self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
+            
+            if self._flag and self._iteration == 0:
+                self._flag = False
+                self.move_base_client.cancel_all_goals()
+                rospy.sleep(1)
+                self.set_goal(self._target_wp, verbose=True)
+                self._set_goal_completed.set()
 
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
@@ -220,6 +221,8 @@ class Navigation():
         else:
             input('[NAV] waiting for repositioning. Press any key to continue...')
         
+        self._set_goal_completed.clear()
+
         pose = PoseWithCovarianceStamped()
         pose.header.frame_id = self.frame_id
         pose.header.stamp = rospy.Time.now()
