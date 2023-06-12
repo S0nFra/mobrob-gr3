@@ -22,7 +22,7 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 1.0    # rad/s
 REACHED_TH = 1.5        # meters
 REACHED_TH_STOP = 0.1   # meters
-SLOW_SPEED = 0.20       # m/s
+SLOW_SPEED = 0.26       # m/s
 FAST_SPEED = 0.26       # m/s
 RESEARCH_ATTEMPTS = 2   # integers multiples of 2
 
@@ -84,6 +84,7 @@ class Navigation():
         self.move_base_client.cancel_all_goals()
         rospy.sleep(1)
         self._goal_completed_event.set() if not self._goal_completed_event.is_set() else None
+        self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH})
         return CancelGoalResponse("[ACK]")
        
     def get_command(self, command:String):
@@ -319,7 +320,7 @@ class Navigation():
                     continue
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
             
-            print('---\n[NAV] command:', self.current_cmd)
+            print(f'---\n{bcolors.BOLD}[NAV] command:', self.current_cmd,bcolors.ENDC)
             if not self.autorun:
                 input('\nPress any key to continue... ')
             else:
