@@ -22,7 +22,7 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 1.0    # rad/s
 REACHED_TH = 1.5        # meters
 REACHED_TH_STOP = 0.1   # meters
-SLOW_SPEED = 0.26       # m/s
+SLOW_SPEED = 0.20       # m/s
 FAST_SPEED = 0.26       # m/s
 RESEARCH_ATTEMPTS = 2   # integers multiples of 2
 

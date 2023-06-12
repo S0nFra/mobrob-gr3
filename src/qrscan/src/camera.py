@@ -50,8 +50,8 @@ class Camera():
             pass
         
         if command:
-            if self.verbose: print(f'[{self.name}] Next command: ', command)
-            self._pub.publish(command)
+            if self.verbose: print(f'[{self.name}] Next command:', command.replace('_',' '))
+            self._pub.publish(command.replace('_',' '))
 
 if __name__ == "__main__":    
     from optparse import OptionParser
