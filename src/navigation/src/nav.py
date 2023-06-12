@@ -49,9 +49,10 @@ class Navigation():
         self._last_waypoint = None
         self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
         self._target_wp = None
-        self._flag = False
-        self._iteration = 3
-        self._set_goal_completed = Event()
+        self._looking_for_command_flag = False
+        self._cmd_force_flag = False
+        self._attempt_cnt = 3
+        self._goal_completed_event = Event()
 
         # Initialize the waypoint reachability graph
         V, E = read_graph(graph_path)
@@ -77,10 +78,10 @@ class Navigation():
 
     def cancel_goal(self, _):
         self.current_cmd = Command.REPOSITION
-        self._flag = False
+        self._looking_for_command_flag = False
         self.move_base_client.cancel_all_goals()
         rospy.sleep(1)
-        self._set_goal_completed.set() if not self._set_goal_completed.is_set() else None
+        self._goal_completed_event.set() if not self._goal_completed_event.is_set() else None
         return CancelGoalResponse("[ACK]")
        
     def get_command(self, command:String):
@@ -90,12 +91,12 @@ class Navigation():
             if self.current_cmd == Command.STOP:
                 self.reconfigure_client.update_configuration({"xy_goal_tolerance":REACHED_TH_STOP})
             
-            if self._flag and self._iteration == 0:
-                self._flag = False
+            if self._looking_for_command_flag and self._attempt_cnt == 0:
+                self._looking_for_command_flag = False
                 self.move_base_client.cancel_all_goals()
                 rospy.sleep(1)
                 self.set_goal(self._target_wp, verbose=True)
-                self._set_goal_completed.set() if self.current_cmd != Command.REPOSITION else None
+                self._goal_completed_event.set() if self.current_cmd != Command.REPOSITION else None
 
     def get_amcl_pose(self) -> Pose2D:
         return to_pose2D(rospy.wait_for_message('/amcl_pose', PoseWithCovarianceStamped))
@@ -190,10 +191,9 @@ class Navigation():
         goal.target_pose.header.frame_id = self.frame_id
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose = to_pose(pose)
-        self._target_wp = pose if not self._cmd_force else self._target_wp
+        self._target_wp = pose if not self._cmd_force_flag else self._target_wp
 
-        self.move_base_client.send_goal(goal)
-        
+        self.move_base_client.send_goal(goal)        
         wait = self.move_base_client.wait_for_result()
         
         if not wait:
@@ -221,7 +221,7 @@ class Navigation():
         else:
             input('[NAV] waiting for repositioning. Press any key to continue...')
         
-        self._set_goal_completed.clear()
+        self._goal_completed_event.clear()
 
         pose = PoseWithCovarianceStamped()
         pose.header.frame_id = self.frame_id
@@ -244,7 +244,7 @@ class Navigation():
     def execute_command(self, command_force=None):
         
         command = command_force if command_force else self.current_cmd
-        self._cmd_force = True if command_force else False
+        self._cmd_force_flag = True if command_force else False
 
         self._current_pose = self.get_amcl_pose()
         print('[NAV] current pose:')
@@ -304,14 +304,14 @@ class Navigation():
             
             if not self.current_cmd:
                 pprint('[NAV] Command not found',bcolors.YELLOW)
-                self._flag = True
+                self._looking_for_command_flag = True
                 for i in range(RESEARCH_ATTEMPTS):
                     pprint(f'[NAV] Looking for command. Try {i+1}/{RESEARCH_ATTEMPTS}',bcolors.YELLOW)
-                    self._iteration = i
+                    self._attempt_cnt = i
                     self.execute_command(command_force=Command.GO_BACK)
-                    if not self._flag:
-                        self._set_goal_completed.wait()
-                        self._set_goal_completed.clear()
+                    if not self._looking_for_command_flag:
+                        self._goal_completed_event.wait()
+                        self._goal_completed_event.clear()
                         break
                 if self.current_cmd == Command.STOP:
                     continue
