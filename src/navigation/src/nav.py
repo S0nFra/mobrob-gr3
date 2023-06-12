@@ -22,9 +22,9 @@ ANGULAR_TH = 1e-2
 ROTATION_SPEED = 1.0    # rad/s
 REACHED_TH = 1.5        # meters
 REACHED_TH_STOP = 0.1   # meters
-SLOW_SPEED = 0.20
-FAST_SPEED = 0.26
-RESEARCH_ATTEMPTS = 2 # integers multiples of 2
+SLOW_SPEED = 0.20       # m/s
+FAST_SPEED = 0.26       # m/s
+RESEARCH_ATTEMPTS = 2   # integers multiples of 2
 
 class Command(str,Enum):
     LEFT = 'LEFT'
@@ -43,11 +43,13 @@ class Navigation():
         self.verbose = verbose
         self.autorun = autorun
         
-        self.current_cmd = None
+        # Covariance for repositioning
+        self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
 
+        # For threads management
         self._current_pose = None
         self._last_waypoint = None
-        self._ref_covariance = [0.214366998116555, 0.002494660950836193, 0.0, 0.0, 0.0, 0.0, 0.002494660950836189, 0.15795109038591174, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05642449211155298]
+        self.current_cmd = None
         self._target_wp = None
         self._looking_for_command_flag = False
         self._cmd_force_flag = False
