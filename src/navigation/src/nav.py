@@ -316,6 +316,7 @@ class Navigation():
                         self._goal_completed_event.wait()
                         self._goal_completed_event.clear()
                         break
+                self._looking_for_command_flag = False
                 if self.current_cmd == Command.STOP:
                     continue
                 self.reconfigure_client.update_configuration({"max_vel_trans":SLOW_SPEED})
