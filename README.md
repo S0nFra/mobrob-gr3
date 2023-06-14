@@ -1,98 +1,109 @@
 # Mobile robot project - group 3
 
-Questo progetto realizza un sistema di movimento autonomo mediante il framework **ROS** per il robot **turtlebot3 waffle pi**. Tale applicazione è stata realizzata avendo come mappa di riferimento il **DIEM**. Lo spostamento del robot avviene attraverso dei punti specifici posti sulla mappa noti come waypoint e rappresentati da due coordinate. 
+This project realizes an autonomous motion system using the **ROS** framework for the **turtlebot3 waffle pi** robot. This application was realized by having the **DIEM** as a reference map. The movement of the robot is done through specific points placed on the map known as waypoints and represented by two coordinates.
 
 ![](src/navigation/landmarks/waypoints.png)
 
-Per poter far muovere il robot autonomamente è necessario fornire dei comandi che esprimono la direzione da prendere una volta raggiunto il prossimo waypoint. I possibili comandi da fornire al robot sono *STRAIGHT ON*, *RIGHT*, *LEFT*, *GO BACK* e *STOP*; questi devono essere codificati in codici QR e sono posti  sulle pareti lungo il percorso.
+In order to make the robot move autonomously, it is necessary to provide commands expressing the direction to be taken once the next waypoint is reached. The possible commands to be provided to the robot are *STRAIGHT ON*, *RIGHT*, *LEFT*, *GO BACK* and *STOP*; these must be encoded in QR codes and are placed on the walls along the path.
 
-Il funzionamento dell'intero sistema può essere riprodotto in simulazione nell'ambiente Gazebo oppure nella realtà.
+The operation of the whole system can be reproduced in simulation in the Gazebo environment or in reality.
 
 
 
-## Requisiti preliminari
+## Preliminary requirements
 
-Una volta clonata la repository effettuare il `build` del progetto.
+Once the repository is cloned perform the `build` of the project.
 
-```
+```bash
 cd mobrob-gr3
 catkin build
 ```
 
 
 
-## Esecuzione in simulazione su Gazebo
+## Running in simulation on Gazebo
 
-I comandi da eseguire per poter avviare la simulazione sono i seguenti:
+The commands to be executed in order to start the simulation are as follows:
 
-1. Avviare l'ambiente di simulazione Gazebo e Rviz:
+1. Start the Gazebo simulation environment and Rviz:
 
-   ```
+   ```bash
    source setup.bash
    roslaunch map2gazebo turtlebot3_diem_sim.launch
    ```
 
-2. Avviare la webcam del pc per la decodifica dei QR:
+2. Start the webcam on the pc to decode the QRs:
 
-   ```
+   ```bash
    source setup.bash
    roslaunch qrscan webcam.launch
    ```
 
-   In alternativa si può pubblicare direttamente il comando in formato `String`:
+   Alternatively, you can directly publish the command in `String` format:
 
-   ```
+   ```bash
    source setup.bash
    rostopic pub /navigation/command std_msgs/String "data: 'command'"
    ```
 
-   dove `command` va sostituito con il comando da dare al robot.
+   where `command` should be replaced with the command to be given to the robot.
 
-3.  Avviare il sistema di navigazione autonomo:
+3.  Start the autonomous navigation system:
 
-   ```
+   ```bash
    source setup.bash
    rosrun navigation nav.py
    ```
 
 
 
-## Esecuzione con turtlebot3 waffle pi
+## Running with turtlebot3 waffle pi
 
-Per avviare un'esecuzione seguire i seguenti passaggi:
+To start an execution follow the steps below:
 
-1. Avviare Rviz su cui verrà caricata la mappa:
+1. Start Rviz on which the map will be loaded:
 
-   ```
+   ```bash
    source setup.bash
    roslaunch map2gazebo turtlebot3_diem.launch
    ```
 
-2. Avviare le telecamere eseguendo:
+2. Start the cameras by running:
 
-   ```
+   ```bash
    source setup.bash
    roslaunch qr_scan camera.launch
    ```
 
-3. Avviare il sistema di navigazione autonomo:
+3. Start the autonomous navigation system:
 
-   ```
+   ```bash
    source setup.bash
    rosrun navigation nav.py
    ```
+
+
+
+## Manual repositioning
+
+To initiate a manual repositioning, invoke the ROS service `/cancel_goal` as follows.
+
+```bash
+source setup.bash
+rosservice call /cancel_goal
+```
 
 
 
 ## Branches
 
-Il progetto si articola in due differenti branches: `hybrid` e `repositioning` . Si differenziano nella logica innescata quando il robot raggiunge un punto senza aver letto nessun comando. Nel primo caso, quando il robot raggiunge un waypoint e non ha letto nessun comando, torna indietro al waypoint precedente finché non viene rilevato un QR; nel secondo caso invece il robot attende di essere spostato manualmente all'ultimo waypoint raggiunto correttamente. 
+The project is divided into two different branches: `hybrid` and `repositioning` . They differ in the logic triggered when the robot reaches a point without having read any command. In the former case, when the robot reaches a waypoint and has not read any command, it goes back to the previous waypoint until a QR is detected; in the latter case, on the other hand, the robot waits to be moved manually to the last waypoint reached correctly.
 
 
 
-## Contatti
+## Contact
 
-| Nome e cognome       | Matricola  | Email                           |
+| Full name            | Freshman   | E-mail                          |
 | -------------------- | ---------- | ------------------------------- |
 | Avitabile Margherita | 0622701825 | m.avitabile6@studenti.unisa.it  |
 | Grimaldi Andrea      | 0622701830 | a.grimaldi112@studenti.unisa.it |
