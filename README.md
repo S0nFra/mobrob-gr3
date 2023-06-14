@@ -72,7 +72,7 @@ Per avviare un'esecuzione seguire i seguenti passaggi:
 
    ```
    source setup.bash
-   roslaunch qr_scan camera.launch
+   roslaunch qrscan camera.launch
    ```
 
 3. Avviare il sistema di navigazione autonomo:
