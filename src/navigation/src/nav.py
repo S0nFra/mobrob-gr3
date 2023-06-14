@@ -326,7 +326,7 @@ class Navigation():
                 input('\nPress any key to continue... ')
             else:
                 # waiting for settling
-                rospy.sleep(1.5)
+                rospy.sleep(0.8)
 
             self.execute_command()
 

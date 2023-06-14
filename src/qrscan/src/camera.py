@@ -51,7 +51,7 @@ class Camera():
         
         if command:
             command = command.replace('_',' ').upper()
-            if self.verbose: print(f'[{self.name}] Next command:', command)
+            if self.verbose: print(f'[{self.name}] TS: {rospy.Time.now().secs}, next command:', command)
             self._pub.publish(command)
 
 if __name__ == "__main__":    
