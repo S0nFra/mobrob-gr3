@@ -72,7 +72,7 @@ To start an execution follow the steps below:
 
    ```bash
    source setup.bash
-   roslaunch qr_scan camera.launch
+   roslaunch qrscan camera.launch
    ```
 
 3. Start the autonomous navigation system:
